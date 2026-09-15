@@ -1,0 +1,34 @@
+name: 자동 실행 유지
+
+# GitHub 는 저장소에 60일간 커밋이 없으면 예약 실행(알림 발송)을 멈춤.
+# 매주 한 번 확인해서 45일 넘게 커밋이 없으면 빈 커밋을 하나 넣어 계속 살아 있게 함.
+on:
+  schedule:
+    - cron: "17 3 * * 1"      # 매주 월요일 03:17 (UTC)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  keep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 마지막 커밋이 45일 넘었으면 빈 커밋
+        run: |
+          last=$(git log -1 --format=%ct)
+          now=$(date +%s)
+          days=$(( (now - last) / 86400 ))
+          echo "마지막 커밋 ${days}일 전"
+          if [ "$days" -ge 45 ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "자동 실행 유지용 빈 커밋 (마지막 커밋 ${days}일 전)"
+            git push
+            echo "빈 커밋 넣음"
+          else
+            echo "아직 괜찮음"
+          fi
