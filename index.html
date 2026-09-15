@@ -77,6 +77,59 @@ input,select{font:inherit}
 .sheet .prio{justify-content:center;margin:-4px 0 16px}
 .task .title{flex:1;text-align:left;min-width:0;white-space:normal;overflow-wrap:anywhere;word-break:keep-all;line-height:1.4;padding:2px 0}
 .task.done .title{color:var(--done);text-decoration:line-through}
+.task .title .tt{display:block}
+.task .title .nt{display:block;font-size:12.5px;color:var(--sub);margin-top:1px}
+.task .title .since{display:inline-block;font-size:11px;color:#ff9f0a;background:#fff4e0;border-radius:5px;padding:1px 5px;margin-top:3px}
+.task.done .title .nt,.task.done .title .since{color:var(--done);background:none}
+.form label .opt{font-weight:400;color:#b0b0b5}
+
+/* 여러 개 선택 모드 */
+.task.selectable .chk{border-radius:50%;background:#fff;box-shadow:inset 0 0 0 1.5px #c7c7cc}
+.task.selectable .chk svg{opacity:0}
+.task.selectable.sel .chk{background:var(--text);box-shadow:none}
+.task.selectable.sel .chk svg{opacity:1}
+.task.selectable .grip{opacity:.25}
+.list-head .tools{display:flex;gap:6px;align-items:center}
+.list-head .selbtn{height:32px;padding:0 12px;border-radius:16px;background:#f2f2f4;font-size:13px;font-weight:600}
+.list-head .selbtn.on{background:var(--text);color:#fff}
+.selbar{position:fixed;left:50%;bottom:calc(16px + var(--safeBottom));transform:translateX(-50%);z-index:15;background:#1c1c1e;color:#fff;border-radius:16px;
+  padding:10px 12px;display:none;gap:6px;align-items:center;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:calc(100vw - 24px);flex-wrap:wrap;justify-content:center}
+.selbar.show{display:flex}
+.selbar .cnt{font-size:13px;font-weight:700;margin:0 6px}
+.selbar button{background:rgba(255,255,255,.12);border-radius:10px;padding:8px 10px;font-size:13px;font-weight:600;white-space:nowrap}
+.selbar button.danger{color:#ff8a8e}
+.selbar .pc{width:22px;height:22px;border-radius:50%;padding:0}
+.selbar .pc[data-p=red]{background:var(--red)}.selbar .pc[data-p=blue]{background:var(--blue)}.selbar .pc[data-p=green]{background:var(--green)}
+
+/* 밀린 일정 */
+.overdue{background:#fff7ed;border:1px solid #ffe2bf;border-radius:12px;padding:10px 12px;margin:0 0 10px}
+.overdue .oh{display:flex;align-items:center;gap:8px}
+.overdue .oa{display:flex;gap:6px;margin-top:8px}
+.overdue .oh .lbl{font-weight:700;font-size:14px;color:#c2410c;flex:1;text-align:left;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.overdue .oh .lbl .arrow{display:inline-block;transition:transform .15s;font-size:12px}
+.overdue.open .oh .lbl .arrow{transform:rotate(90deg)}
+.overdue .oa button.act{font-size:12px;font-weight:600;background:#fff;border:1px solid #ffd9a8;border-radius:8px;padding:5px 9px;color:#9a3412}
+.overdue .ob{display:none;margin-top:8px;border-top:1px solid #ffe2bf;padding-top:4px}
+.overdue.open .ob{display:block}
+.overdue .task{padding:9px 2px}
+.overdue .task .od{font-size:11px;color:#c2410c;background:#ffedd5;border-radius:5px;padding:1px 5px;flex:none;margin-right:2px}
+.switch{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#9a3412;cursor:pointer;user-select:none;white-space:nowrap;flex:none}
+.switch .kn{width:34px;height:20px;border-radius:10px;background:#e5d5c3;position:relative;transition:background .15s}
+.switch .kn::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s}
+.switch.on .kn{background:#34c759}.switch.on .kn::after{left:16px}
+
+/* 검색 */
+.search-in{width:100%;border:0;background:#f2f2f4;border-radius:12px;padding:13px 14px;font-size:16px;outline:none;-webkit-appearance:none;color:var(--text);margin-bottom:8px}
+.search-list{max-height:60vh;overflow:auto;margin:0 -4px}
+.sr{display:flex;align-items:center;gap:10px;padding:10px 6px;border-bottom:1px solid var(--line);width:100%;text-align:left}
+.sr:last-child{border-bottom:0}
+.sr .dot{width:10px;height:10px;border-radius:50%;flex:none}
+.sr .dot[data-p=red]{background:var(--red)}.sr .dot[data-p=blue]{background:var(--blue)}.sr .dot[data-p=green]{background:var(--green)}
+.sr .t{flex:1;min-width:0;white-space:normal;overflow-wrap:anywhere;word-break:keep-all}
+.sr .t .n{font-size:12px;color:var(--sub)}
+.sr .d{font-size:12.5px;color:var(--sub);flex:none;text-align:right;line-height:1.3}
+.sr.done .t{color:var(--done);text-decoration:line-through}
+.sr mark{background:#fff3b0;color:inherit;border-radius:2px;padding:0 1px}
 .task .rep{font-size:11px;color:var(--sub);background:#f2f2f4;border-radius:6px;padding:2px 6px;flex:none}
 .task .grip{width:28px;height:28px;margin-right:-6px;display:flex;align-items:center;justify-content:center;flex:none;cursor:grab;touch-action:none;color:#c7c7cc;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .task .grip svg{width:16px;height:16px;fill:currentColor}
@@ -197,6 +250,7 @@ input,select{font:inherit}
   <div class="top">
     <h1>회사 일정</h1>
     <div id="status" class="status">
+      <button class="iconbtn" id="searchBtn" title="검색" style="margin-right:6px"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button>
       <button class="iconbtn arch" id="archBtn" title="보관함" style="margin-right:6px"><svg viewBox="0 0 24 24"><path d="M3 4h18v4H3z"/><path d="M5 8v12h14V8"/><path d="M10 12h4"/></svg><span class="badge hidden" id="archBadge"></span></button>
       <span class="dot"></span><span id="statusText">로컬 모드</span><button id="logoutBtn" class="hidden">로그아웃</button>
       <button class="iconbtn" id="trashBtn" title="휴지통" style="margin-left:6px"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>
@@ -219,13 +273,48 @@ input,select{font:inherit}
   <div class="card list">
     <div class="list-head">
       <div class="date" id="selLabel"></div>
-      <button class="add" id="addBtn" title="일정 추가">+</button>
+      <div class="tools">
+        <button class="selbtn" id="selBtn" title="여러 개 선택">선택</button>
+        <button class="add" id="addBtn" title="일정 추가">+</button>
+      </div>
+    </div>
+    <div id="overdue" class="overdue hidden">
+      <div class="oh">
+        <button class="lbl" id="odToggle"><span class="arrow">▶</span><span id="odLabel"></span></button>
+        <label class="switch" id="odAuto" title="켜 두면 날짜가 지난 미완료 일정을 자동으로 오늘로 옮깁니다"><span class="kn"></span>자동 이월</label>
+      </div>
+      <div class="oa">
+        <button class="act" id="odAllToday">모두 오늘로</button>
+        <button class="act" id="odAllArch">모두 보관함으로</button>
+      </div>
+      <div class="ob" id="odList"></div>
     </div>
     <div id="tasks"></div>
   </div>
 </div>
 
+<!-- 여러 개 선택 시 아래 작업 바 -->
+<div class="selbar" id="selbar">
+  <span class="cnt" id="selCnt">0개</span>
+  <button id="sbToday">오늘</button>
+  <button id="sbTomorrow">내일</button>
+  <button id="sbMove">날짜</button>
+  <button id="sbArch">보관함</button>
+  <button class="pc" data-p="red" title="급함"></button><button class="pc" data-p="blue" title="보통"></button><button class="pc" data-p="green" title="여유"></button>
+  <button id="sbDelete" class="danger">삭제</button>
+  <button id="sbCancel">취소</button>
+</div>
+
 <div class="backdrop" id="backdrop"></div>
+
+<!-- 검색 시트 -->
+<div class="sheet" id="searchSheet">
+  <div class="grab"></div>
+  <h2>검색</h2>
+  <input type="search" class="search-in" id="searchIn" placeholder="제목·부제목 검색" autocomplete="off">
+  <div class="search-list" id="searchList"></div>
+  <div class="form"><div class="actions"><button id="searchClose">닫기</button></div></div>
+</div>
 
 <!-- 일정 메뉴 시트 -->
 <div class="sheet" id="actionSheet">
@@ -252,6 +341,8 @@ input,select{font:inherit}
   <div class="form">
     <label>내용</label>
     <input type="text" id="fTitle" placeholder="무엇을 할까요?" maxlength="200">
+    <label>부제목 <span class="opt">(선택 · 제목 아래 작은 글씨로 항상 표시)</span></label>
+    <input type="text" id="fNote" placeholder="담당자, 연락처, 조건 등" maxlength="300">
     <label>우선순위</label>
     <div class="prio" id="fPrio"><button class="pc on" data-p="red"></button><button class="pc" data-p="blue"></button><button class="pc" data-p="green"></button><span class="pl" id="fPrioLabel">급함</span></div>
     <div id="fDated">
@@ -413,21 +504,30 @@ function instancesOn(date){
 }
 
 /* ───────────── 저장소: 로컬 ───────────── */
+// 설정(자동 이월 등)은 일정과 같이 동기화됨
+let settings={autoRollover:false};
 class LocalStore{
-  constructor(){this.key='worktodo.tasks';}
+  constructor(){this.key='worktodo.tasks';this.skey='worktodo.settings';}
   async init(onChange){
     try{tasks=JSON.parse(localStorage.getItem(this.key)||'{}');}catch(e){tasks={};}
+    try{settings={...settings,...JSON.parse(localStorage.getItem(this.skey)||'{}')};}catch(e){}
     this.onChange=onChange; onChange();
     setStatus('','로컬 모드 (이 기기에만 저장)');
   }
   flush(){localStorage.setItem(this.key,JSON.stringify(tasks));this.onChange();}
   async put(t){tasks[t.id]=t;this.flush();}
   async remove(id){delete tasks[id];this.flush();}
+  async putSettings(s){settings={...settings,...s};localStorage.setItem(this.skey,JSON.stringify(settings));this.onChange();}
 }
 
 /* ───────────── 저장소: Firestore ───────────── */
 class FireStore{
-  constructor(user){this.user=user;this.col=firebase.firestore().collection('users').doc(user.uid).collection('tasks');}
+  constructor(user){
+    this.user=user;
+    const u=firebase.firestore().collection('users').doc(user.uid);
+    this.col=u.collection('tasks');
+    this.sdoc=u.collection('meta').doc('settings');
+  }
   async init(onChange){
     this.onChange=onChange;
     this.unsub=this.col.onSnapshot({includeMetadataChanges:true},snap=>{
@@ -437,9 +537,11 @@ class FireStore{
       setStatus(snap.metadata.fromCache?'off':'on', snap.metadata.fromCache?'오프라인 (연결되면 동기화)':'동기화 됨');
       onChange();
     },err=>{console.error(err);setStatus('err','동기화 오류: '+err.code);});
+    this.unsubS=this.sdoc.onSnapshot(doc=>{if(doc.exists){settings={...settings,...doc.data()};onChange();}});
   }
   async put(t){tasks[t.id]=t;this.onChange();await this.col.doc(t.id).set(t);}
   async remove(id){delete tasks[id];this.onChange();await this.col.doc(id).delete();}
+  async putSettings(s){settings={...settings,...s};this.onChange();await this.sdoc.set(settings,{merge:true});}
 }
 
 /* ───────────── 렌더 ───────────── */
@@ -448,7 +550,7 @@ function setStatus(cls,text){const s=$('status');s.className='status '+cls;$('st
 
 function render(){
   if(drag){renderPending=true;return;}   // 끄는 중엔 미룸 (endDrag 에서 처리)
-  renderCalendar();renderList();renderArchBadge();if($('archSheet').classList.contains('show'))renderArchive();purgeOld();
+  renderCalendar();renderList();renderArchBadge();if($('archSheet').classList.contains('show'))renderArchive();if($('searchSheet').classList.contains('show'))renderSearch();purgeOld();rolloverIfNeeded();
 }
 
 function renderCalendar(){
@@ -481,11 +583,100 @@ function renderList(){
   const today=todayStr();
   const rel=selDate===today?'오늘':selDate===addDays(today,1)?'내일':selDate===addDays(today,-1)?'어제':'';
   $('selLabel').innerHTML=`${d.getMonth()+1}월 ${d.getDate()}일 (${WD[d.getDay()]})<small>${rel}</small>`;
+  renderOverdue();
   const box=$('tasks');box.innerHTML='';
   const inst=instancesOn(selDate);
   if(!inst.length){box.innerHTML='<div class="nolist">일정이 없습니다</div>';return;}
-  for(const t of inst) box.appendChild(makeRow(t,selDate));
+  for(const t of inst){const row=makeRow(t,selDate);if(selMode)row.classList.add('selectable');box.appendChild(row);}
 }
+
+/* ───────────── 밀린 일정 (날짜 지난 미완료, 반복 제외) ───────────── */
+const overdueTasks=()=>{const today=todayStr();return live().filter(t=>!isRepeat(t)&&!t.done&&t.date<today).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:(PRI.indexOf(priOf(a))-PRI.indexOf(priOf(b))));};
+let odOpen=false;
+function renderOverdue(){
+  const el=$('overdue');
+  const isToday=selDate===todayStr();
+  const list=isToday?overdueTasks():[];   // 오늘 화면에서만 표시
+  // 밀린 게 없어도 자동 이월이 켜져 있으면 끌 수 있게 얇게 표시
+  if(!list.length&&!(isToday&&settings.autoRollover)){el.classList.add('hidden');return;}
+  el.classList.remove('hidden');
+  el.classList.toggle('open',odOpen&&list.length>0);
+  $('odLabel').textContent=list.length?`지난 미완료 ${list.length}개`:'지난 미완료 없음';
+  $('odAllToday').classList.toggle('hidden',!list.length);
+  $('odAllArch').classList.toggle('hidden',!list.length);
+  $('overdue').querySelector('.oa').classList.toggle('hidden',!list.length);
+  $('odToggle').querySelector('.arrow').style.visibility=list.length?'':'hidden';
+  $('odAuto').classList.toggle('on',!!settings.autoRollover);
+  const box=$('odList');box.innerHTML='';
+  for(const t of list){
+    const row=makeRow(t,t.date);
+    const d=parse(t.date);const od=document.createElement('span');od.className='od';od.textContent=`${d.getMonth()+1}/${d.getDate()}`;
+    row.insertBefore(od,row.querySelector('.title'));
+    if(selMode)row.classList.add('selectable');
+    box.appendChild(row);
+  }
+}
+$('odToggle').onclick=()=>{odOpen=!odOpen;$('overdue').classList.toggle('open',odOpen);};
+$('odAllToday').onclick=()=>{const list=overdueTasks();if(!list.length)return;bulkMove(list,todayStr());toast(`${list.length}개를 오늘로 옮겼습니다`);};
+$('odAllArch').onclick=()=>{const list=overdueTasks();if(!list.length)return;askConfirm(`지난 미완료 ${list.length}개를 보관함으로 옮길까요?`,'보관함으로',false,()=>{list.forEach(t=>archiveTaskSilent(t));toast(`${list.length}개를 보관함으로 옮겼습니다`);});};
+$('odAuto').onclick=()=>{const on=!settings.autoRollover;store.putSettings({autoRollover:on});toast(on?'자동 이월을 켰습니다. 지난 미완료는 매일 오늘로 넘어옵니다':'자동 이월을 껐습니다');if(on)rolloverIfNeeded(true);};
+// 자동 이월: 켜져 있으면 날짜 지난 미완료를 오늘로 (원래 날짜는 origDate 에 남김)
+let rolledFor='';
+function rolloverIfNeeded(force){
+  if(!settings.autoRollover||!store)return;
+  const today=todayStr(); if(!force&&rolledFor===today)return; rolledFor=today;
+  for(const t of overdueTasks()) store.put({...t,origDate:t.origDate||t.date,date:today,updatedAt:Date.now()});
+}
+async function bulkMove(list,toDate){for(const t of list){await moveInstance(t,t.date,toDate);}}
+function archiveTaskSilent(t){const n={...t,archived:true,repeat:null,done:false,updatedAt:Date.now()};delete n.doneDates;delete n.skipDates;delete n.origDate;store.put(n);}
+
+/* ───────────── 여러 개 선택 ───────────── */
+let selMode=false, selIds=new Set();
+function setSelMode(on){
+  selMode=on; if(!on)selIds.clear();
+  $('selBtn').classList.toggle('on',on); $('selBtn').textContent=on?'완료':'선택';
+  $('selbar').classList.toggle('show',on); updateSelbar(); render();
+}
+function toggleSelect(id,row){if(selIds.has(id))selIds.delete(id);else selIds.add(id);row.classList.toggle('sel',selIds.has(id));updateSelbar();}
+function updateSelbar(){$('selCnt').textContent=`${selIds.size}개`;}
+const selectedTasks=()=>[...selIds].map(id=>tasks[id]).filter(Boolean);
+$('selBtn').onclick=()=>setSelMode(!selMode);
+$('sbCancel').onclick=()=>setSelMode(false);
+function bulkDo(fn,msg){const list=selectedTasks();if(!list.length){toast('선택된 일정이 없습니다');return;}fn(list);setSelMode(false);if(msg)toast(msg(list.length));}
+$('sbToday').onclick=()=>bulkDo(l=>bulkMove(l,todayStr()),n=>`${n}개를 오늘로 옮겼습니다`);
+$('sbTomorrow').onclick=()=>bulkDo(l=>bulkMove(l,addDays(todayStr(),1)),n=>`${n}개를 내일로 옮겼습니다`);
+$('sbArch').onclick=()=>bulkDo(l=>l.forEach(archiveTaskSilent),n=>`${n}개를 보관함으로 옮겼습니다`);
+$('sbDelete').onclick=()=>{const list=selectedTasks();if(!list.length){toast('선택된 일정이 없습니다');return;}
+  askConfirm(`${list.length}개를 삭제할까요? (휴지통으로 이동)`,'삭제',true,()=>{list.forEach(t=>{const n={...t,deleted:true,deletedAt:Date.now(),updatedAt:Date.now()};store.put(n);});setSelMode(false);toast(`${list.length}개를 휴지통으로 옮겼습니다`);});};
+$('selbar').querySelectorAll('.pc').forEach(b=>b.onclick=()=>bulkDo(l=>l.forEach(t=>store.put({...t,priority:b.dataset.p,updatedAt:Date.now()})),n=>`${n}개를 ${PRI_LABEL[b.dataset.p]}으로 바꿨습니다`));
+let bulkPick=false;
+$('sbMove').onclick=()=>{if(!selIds.size){toast('선택된 일정이 없습니다');return;}bulkPick=true;openPick(selDate);};
+
+/* ───────────── 검색 ───────────── */
+function esc(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function hl(text,q){const i=text.toLowerCase().indexOf(q);if(i<0)return esc(text);return esc(text.slice(0,i))+'<mark>'+esc(text.slice(i,i+q.length))+'</mark>'+esc(text.slice(i+q.length));}
+function nextOccurrence(t){const today=todayStr();if(!isRepeat(t))return t.date;for(let i=0;i<400;i++){const s=addDays(today,i);if(occursOn(t,s))return s;}return t.date;}
+function renderSearch(){
+  const q=$('searchIn').value.trim().toLowerCase();
+  const box=$('searchList');box.innerHTML='';
+  if(!q){box.innerHTML='<div class="nolist">제목이나 부제목을 입력하세요</div>';return;}
+  const all=Object.values(tasks).filter(t=>!t.deleted&&((t.title||'').toLowerCase().includes(q)||(t.note||'').toLowerCase().includes(q)));
+  // 최근 날짜가 위로, 보관함은 맨 아래
+  all.sort((a,b)=>(!!a.archived-!!b.archived)||(a.date<b.date?1:a.date>b.date?-1:0));
+  if(!all.length){box.innerHTML='<div class="nolist">검색 결과가 없습니다</div>';return;}
+  for(const t of all){
+    const b=document.createElement('button');b.className='sr'+((!isRepeat(t)&&t.done)?' done':'');
+    let dl;
+    if(t.archived)dl='보관함';
+    else{const d=parse(t.date);dl=`${d.getFullYear()}.${pad(d.getMonth()+1)}.${pad(d.getDate())}`;if(isRepeat(t))dl+=`<br>${repeatLabel(t)}`;}
+    b.innerHTML=`<span class="dot" data-p="${priOf(t)}"></span><span class="t">${hl(t.title||'',q)}${t.note?`<div class="n">${hl(t.note,q)}</div>`:''}</span><span class="d">${dl}</span>`;
+    b.onclick=()=>{hide();if(t.archived){setTimeout(openArchive,150);return;}const s=nextOccurrence(t);selDate=s;const d=parse(s);viewY=d.getFullYear();viewM=d.getMonth();render();};
+    box.appendChild(b);
+  }
+}
+$('searchBtn').onclick=()=>{show('searchSheet');renderSearch();setTimeout(()=>$('searchIn').focus(),50);};
+$('searchIn').oninput=renderSearch;
+$('searchClose').onclick=hide;
 // 일정 한 줄 (달력 목록·보관함 공용). date=null 이면 보관함 항목
 function makeRow(t,date){
   const done=isDone(t,date);
@@ -495,12 +686,16 @@ function makeRow(t,date){
   row.dataset.id=t.id;
   row.dataset.group=(done?'d':'u')+'-'+priOf(t);   // 드래그 범위: 같은 완료상태 + 같은 색
   row.innerHTML=`<button class="chk" aria-label="완료"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L19 7"/></svg></button>
-    <button class="title"></button>${isRepeat(t)?`<span class="rep">${repeatLabel(t)}</span>`:''}
+    <button class="title"><span class="tt"></span><span class="nt hidden"></span><span class="since hidden"></span></button>${isRepeat(t)?`<span class="rep">${repeatLabel(t)}</span>`:''}
     <span class="grip" title="끌어서 순서 바꾸기"><svg viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>`;
-  row.querySelector('.title').textContent=t.title;
-  row.querySelector('.chk').onclick=()=>toggleDone(t,date);
-  row.querySelector('.title').onclick=()=>openActions(t,date);
-  row.querySelector('.grip').onpointerdown=e=>startDrag(e,row);
+  row.querySelector('.tt').textContent=t.title;
+  if(t.note){const n=row.querySelector('.nt');n.textContent=t.note;n.classList.remove('hidden');}
+  // 자동 이월된 일정: 원래 날짜 표시
+  if(t.origDate&&t.origDate!==t.date&&!isRepeat(t)){const s=row.querySelector('.since');const d=parse(t.origDate);s.textContent=`${d.getMonth()+1}/${d.getDate()}부터`;s.classList.remove('hidden');}
+  row.querySelector('.chk').onclick=()=>{if(selMode)toggleSelect(t.id,row);else toggleDone(t,date);};
+  row.querySelector('.title').onclick=()=>{if(selMode)toggleSelect(t.id,row);else openActions(t,date);};
+  row.querySelector('.grip').onpointerdown=e=>{if(!selMode)startDrag(e,row);};
+  if(selMode&&selIds.has(t.id))row.classList.add('sel');
   return row;
 }
 
@@ -631,7 +826,8 @@ async function moveInstance(t,fromDate,toDate){
     await store.put(n);
     await store.put({id:uid(),title:t.title,date:toDate,done:false,repeat:null,priority:priOf(t),createdAt:Date.now(),updatedAt:Date.now()});
   }else{
-    await store.put({...t,date:toDate,done:false,updatedAt:Date.now()});
+    const n={...t,date:toDate,done:false,updatedAt:Date.now()};delete n.origDate;   // 직접 옮기면 "n/n부터" 표시 해제
+    await store.put(n);
   }
 }
 // 삭제 = 휴지통으로(복구 가능). 반복의 "이 날만"은 skipDates 기록 + 되돌리기만 제공
@@ -749,9 +945,11 @@ $('dOne').onclick=()=>{hide();deleteInstance(cur,curDate,false);};
 $('dAll').onclick=()=>{hide();deleteInstance(cur,curDate,true);};
 $('dCancel').onclick=hide;
 
-$('mCancel').onclick=hide;
+$('mCancel').onclick=()=>{bulkPick=false;hide();};
 // 날짜를 옮겨도 보고 있던 날짜는 그대로 (형님 요청 2026-09-15)
-$('mSave').onclick=()=>{const v=pickDate;if(!v)return;hide();moveInstance(cur,curDate,v);const d=parse(v);toast(`${d.getMonth()+1}월 ${d.getDate()}일로 옮겼습니다`);backToArch();};
+$('mSave').onclick=()=>{const v=pickDate;if(!v)return;hide();
+  if(bulkPick){bulkPick=false;const list=selectedTasks();bulkMove(list,v);setSelMode(false);const d=parse(v);toast(`${list.length}개를 ${d.getMonth()+1}월 ${d.getDate()}일로 옮겼습니다`);return;}
+  moveInstance(cur,curDate,v);const d=parse(v);toast(`${d.getMonth()+1}월 ${d.getDate()}일로 옮겼습니다`);backToArch();};
 
 /* 추가/수정 폼 */
 let fRepeatType='none', fWeek=new Set(), fPri='red';
@@ -774,6 +972,7 @@ function openEdit(t,focusRepeat,archivedMode){
   cur=t||null;fArchived=!!archivedMode;
   $('esTitle').textContent=fArchived?(t?'보관함 항목 수정':'보관함에 추가'):t?(focusRepeat?'반복 설정':'일정 수정'):'일정 추가';
   $('fTitle').value=t?t.title:'';
+  $('fNote').value=t&&t.note?t.note:'';
   $('fDate').value=t?t.date:selDate;
   $('fDated').classList.toggle('hidden',fArchived);
   setPrioUI(t?priOf(t):'red');
@@ -785,13 +984,13 @@ $('addBtn').onclick=()=>openEdit(null);
 $('fCancel').onclick=hide;
 $('fTitle').onkeydown=e=>{if(e.key==='Enter')$('fSave').click();};
 $('fSave').onclick=()=>{
-  const title=$('fTitle').value.trim(), date=$('fDate').value;
+  const title=$('fTitle').value.trim(), date=$('fDate').value, note=$('fNote').value.trim();
   if(!title){$('fTitle').focus();return;}
   if(fArchived){
     // 보관함 항목: 날짜·반복 없이 제목·색만
     const now=Date.now();
-    if(cur) store.put({...cur,title,priority:fPri,updatedAt:now});
-    else store.put({id:uid(),title,date:todayStr(),done:false,repeat:null,priority:fPri,archived:true,createdAt:now,updatedAt:now});
+    if(cur) store.put({...cur,title,note,priority:fPri,updatedAt:now});
+    else store.put({id:uid(),title,note,date:todayStr(),done:false,repeat:null,priority:fPri,archived:true,createdAt:now,updatedAt:now});
     hide();setTimeout(openArchive,150);return;
   }
   if(!date){$('fDate').focus();return;}
@@ -799,11 +998,11 @@ $('fSave').onclick=()=>{
   const repeat=fRepeatType==='none'?null:{type:fRepeatType,weekdays:fRepeatType==='weekly'?[...fWeek].sort():[]};
   const now=Date.now();
   if(cur){
-    const n={...cur,title,date,repeat,priority:fPri,updatedAt:now};
+    const n={...cur,title,note,date,repeat,priority:fPri,updatedAt:now};
     if(!repeat){delete n.doneDates;delete n.skipDates;n.done=!!cur.done;}
     store.put(n);
   }else{
-    store.put({id:uid(),title,date,done:false,repeat,priority:fPri,createdAt:now,updatedAt:now});
+    store.put({id:uid(),title,note,date,done:false,repeat,priority:fPri,createdAt:now,updatedAt:now});
   }
   hide();
   render();
@@ -836,10 +1035,10 @@ async function boot(){
   firebase.auth().onAuthStateChanged(user=>{
     if(user){
       $('loginView').classList.add('hidden');$('appView').classList.remove('hidden');$('logoutBtn').classList.remove('hidden');
-      if(store&&store.unsub)store.unsub();
+      if(store&&store.unsub){store.unsub();if(store.unsubS)store.unsubS();}
       store=new FireStore(user);store.init(render);
     }else{
-      if(store&&store.unsub)store.unsub();
+      if(store&&store.unsub){store.unsub();if(store.unsubS)store.unsubS();}
       store=null;tasks={};
       $('appView').classList.add('hidden');$('loginView').classList.remove('hidden');
     }
