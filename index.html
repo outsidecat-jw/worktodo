@@ -78,6 +78,11 @@ input,select{font:inherit}
 .task .title{flex:1;text-align:left;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 0}
 .task.done .title{color:var(--done);text-decoration:line-through}
 .task .rep{font-size:11px;color:var(--sub);background:#f2f2f4;border-radius:6px;padding:2px 6px;flex:none}
+.task .grip{width:28px;height:28px;margin-right:-6px;display:flex;align-items:center;justify-content:center;flex:none;cursor:grab;touch-action:none;color:#c7c7cc}
+.task .grip svg{width:16px;height:16px;fill:currentColor}
+.task .grip:active{cursor:grabbing;color:var(--sub)}
+.task.dragging{opacity:.25}
+.task.ghost{background:#fff;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.18);border-bottom:0;opacity:.97}
 .nolist{color:var(--sub);text-align:center;padding:28px 0 20px;font-size:14px}
 
 /* 시트 */
@@ -85,8 +90,8 @@ input,select{font:inherit}
 .backdrop.show{display:block;opacity:1}
 .sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;background:#fff;border-radius:22px 22px 0 0;
   padding:8px 20px calc(20px + var(--safeBottom));transform:translateY(105%);transition:transform .25s cubic-bezier(.2,.8,.2,1);max-height:90vh;overflow:auto}
-.sheet{pointer-events:none}
-.sheet.show{transform:translateY(0);pointer-events:auto}
+.sheet{pointer-events:none;visibility:hidden;transition:transform .25s cubic-bezier(.2,.8,.2,1),opacity .2s,visibility 0s .25s}
+.sheet.show{transform:translateY(0);pointer-events:auto;visibility:visible;transition:transform .25s cubic-bezier(.2,.8,.2,1),opacity .2s,visibility 0s}
 .sheet .grab{width:40px;height:4px;border-radius:2px;background:#d9d9de;margin:4px auto 14px}
 .sheet h2{margin:0 0 16px;font-size:16px;font-weight:800;text-align:center;word-break:break-all}
 .sheet .big{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
@@ -144,6 +149,12 @@ input,select{font:inherit}
 .iconbtn{width:32px;height:32px;border-radius:50%;background:#f2f2f4;display:flex;align-items:center;justify-content:center;flex:none}
 .iconbtn svg{width:16px;height:16px;stroke:var(--text);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .trash-list{max-height:55vh;overflow:auto}
+.iconbtn.arch{position:relative}
+.status .iconbtn{text-decoration:none}
+.iconbtn .badge{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--red);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.arch-list{max-height:60vh;overflow:auto;margin:0 -4px}
+.arch-list .task{padding:11px 8px}
+.ic.gray{background:#8e8e93}
 .ti{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
 .ti:last-child{border-bottom:0}
 .ti .t{flex:1;min-width:0}
@@ -178,7 +189,9 @@ input,select{font:inherit}
 <div id="appView" class="app hidden">
   <div class="top">
     <h1>회사 일정</h1>
-    <div id="status" class="status"><span class="dot"></span><span id="statusText">로컬 모드</span><button id="logoutBtn" class="hidden">로그아웃</button>
+    <div id="status" class="status">
+      <button class="iconbtn arch" id="archBtn" title="보관함" style="margin-right:6px"><svg viewBox="0 0 24 24"><path d="M3 4h18v4H3z"/><path d="M5 8v12h14V8"/><path d="M10 12h4"/></svg><span class="badge hidden" id="archBadge"></span></button>
+      <span class="dot"></span><span id="statusText">로컬 모드</span><button id="logoutBtn" class="hidden">로그아웃</button>
       <button class="iconbtn" id="trashBtn" title="휴지통" style="margin-left:6px"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>
     </div>
   </div>
@@ -221,6 +234,7 @@ input,select{font:inherit}
     <button id="asTomorrow"><span class="ic blue"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg></span>내일 하기</button>
     <button id="asMove"><span class="ic purple"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4M16 3v4"/></svg></span>날짜 바꾸기</button>
     <button id="asRepeat"><span class="ic green"><svg viewBox="0 0 24 24"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg></span>반복 설정</button>
+    <button id="asArchive"><span class="ic gray"><svg viewBox="0 0 24 24"><path d="M3 4h18v4H3z"/><path d="M5 8v12h14V8"/><path d="M10 12h4"/></svg></span>보관함으로 이동</button>
   </div>
 </div>
 
@@ -233,6 +247,7 @@ input,select{font:inherit}
     <input type="text" id="fTitle" placeholder="무엇을 할까요?" maxlength="200">
     <label>우선순위</label>
     <div class="prio" id="fPrio"><button class="pc on" data-p="red"></button><button class="pc" data-p="blue"></button><button class="pc" data-p="green"></button><span class="pl" id="fPrioLabel">급함</span></div>
+    <div id="fDated">
     <label>날짜</label>
     <input type="date" id="fDate">
     <label>반복</label>
@@ -245,6 +260,7 @@ input,select{font:inherit}
     </div>
     <div class="wd hidden" id="fWeekdays">
       <button data-d="0">일</button><button data-d="1">월</button><button data-d="2">화</button><button data-d="3">수</button><button data-d="4">목</button><button data-d="5">금</button><button data-d="6">토</button>
+    </div>
     </div>
     <div class="actions">
       <button id="fCancel">취소</button>
@@ -292,6 +308,19 @@ input,select{font:inherit}
     <div class="actions" style="margin-top:0">
       <button id="cfCancel">취소</button>
       <button id="cfOk" class="primary">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- 보관함 시트: 날짜 없이 두는 항목들 -->
+<div class="sheet" id="archSheet">
+  <div class="grab"></div>
+  <h2>보관함</h2>
+  <div class="arch-list" id="archList"></div>
+  <div class="form">
+    <div class="actions">
+      <button id="archClose">닫기</button>
+      <button id="archAdd" class="primary">+ 추가</button>
     </div>
   </div>
 </div>
@@ -364,11 +393,15 @@ function repeatLabel(t){
 /* 우선순위: red(급함) > blue(보통, 기본) > green(여유) */
 const PRI=['red','blue','green'], PRI_LABEL={red:'급함',blue:'보통',green:'여유'};
 const priOf=t=>PRI.includes(t.priority)?t.priority:'blue';
-const live=()=>Object.values(tasks).filter(t=>!t.deleted);      // 휴지통 제외
+// 수동 순서. 정한 적 없으면 맨 아래(새 일정은 아래에 붙음)
+const ord=t=>typeof t.order==='number'?t.order:Number.MAX_SAFE_INTEGER;
+const live=()=>Object.values(tasks).filter(t=>!t.deleted&&!t.archived);      // 휴지통·보관함 제외 (달력용)
+const sortRows=(list,date)=>list.sort((a,b)=>(isDone(a,date)-isDone(b,date))||(PRI.indexOf(priOf(a))-PRI.indexOf(priOf(b)))||(ord(a)-ord(b))||((a.createdAt||0)-(b.createdAt||0)));
+const archived=()=>sortRows(Object.values(tasks).filter(t=>!t.deleted&&t.archived),null);
 const trashed=()=>Object.values(tasks).filter(t=>t.deleted).sort((a,b)=>(b.deletedAt||0)-(a.deletedAt||0));
 function instancesOn(date){
   return live().filter(t=>occursOn(t,date))
-    .sort((a,b)=>(isDone(a,date)-isDone(b,date))||(PRI.indexOf(priOf(a))-PRI.indexOf(priOf(b)))||((a.createdAt||0)-(b.createdAt||0)));
+    .sort((a,b)=>(isDone(a,date)-isDone(b,date))||(PRI.indexOf(priOf(a))-PRI.indexOf(priOf(b)))||(ord(a)-ord(b))||((a.createdAt||0)-(b.createdAt||0)));
 }
 
 /* ───────────── 저장소: 로컬 ───────────── */
@@ -405,7 +438,7 @@ class FireStore{
 const $=id=>document.getElementById(id);
 function setStatus(cls,text){const s=$('status');s.className='status '+cls;$('statusText').textContent=text;}
 
-function render(){renderCalendar();renderList();purgeOld();}
+function render(){renderCalendar();renderList();renderArchBadge();if($('archSheet').classList.contains('show'))renderArchive();purgeOld();}
 
 function renderCalendar(){
   $('monthLabel').textContent=`${viewY}년 ${viewM+1}월`;
@@ -440,18 +473,89 @@ function renderList(){
   const box=$('tasks');box.innerHTML='';
   const inst=instancesOn(selDate);
   if(!inst.length){box.innerHTML='<div class="nolist">일정이 없습니다</div>';return;}
-  for(const t of inst){
-    const done=isDone(t,selDate);
-    const row=document.createElement('div');
-    row.className='task'+(done?' done':'');
-    row.dataset.p=priOf(t);
-    row.innerHTML=`<button class="chk" aria-label="완료"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L19 7"/></svg></button>
-      <button class="title"></button>${isRepeat(t)?`<span class="rep">${repeatLabel(t)}</span>`:''}`;
-    row.querySelector('.title').textContent=t.title;
-    row.querySelector('.chk').onclick=()=>toggleDone(t,selDate);
-    row.querySelector('.title').onclick=()=>openActions(t,selDate);
-    box.appendChild(row);
-  }
+  for(const t of inst) box.appendChild(makeRow(t,selDate));
+}
+// 일정 한 줄 (달력 목록·보관함 공용). date=null 이면 보관함 항목
+function makeRow(t,date){
+  const done=isDone(t,date);
+  const row=document.createElement('div');
+  row.className='task'+(done?' done':'');
+  row.dataset.p=priOf(t);
+  row.dataset.id=t.id;
+  row.dataset.group=(done?'d':'u')+'-'+priOf(t);   // 드래그 범위: 같은 완료상태 + 같은 색
+  row.innerHTML=`<button class="chk" aria-label="완료"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L19 7"/></svg></button>
+    <button class="title"></button>${isRepeat(t)?`<span class="rep">${repeatLabel(t)}</span>`:''}
+    <span class="grip" title="끌어서 순서 바꾸기"><svg viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>`;
+  row.querySelector('.title').textContent=t.title;
+  row.querySelector('.chk').onclick=()=>toggleDone(t,date);
+  row.querySelector('.title').onclick=()=>openActions(t,date);
+  row.querySelector('.grip').onpointerdown=e=>startDrag(e,row);
+  return row;
+}
+
+/* ───────────── 보관함 ───────────── */
+function renderArchive(){
+  const box=$('archList');box.innerHTML='';
+  const list=archived();
+  if(!list.length){box.innerHTML='<div class="nolist">보관함이 비어 있습니다</div>';return;}
+  for(const t of list) box.appendChild(makeRow(t,null));
+}
+function renderArchBadge(){
+  const n=archived().filter(t=>!t.done).length;
+  const b=$('archBadge');b.textContent=n;b.classList.toggle('hidden',n===0);
+}
+function openArchive(){renderArchive();show('archSheet');}
+$('archBtn').onclick=openArchive;
+$('archClose').onclick=hide;
+$('archAdd').onclick=()=>{hide();setTimeout(()=>openEdit(null,false,true),150);};
+// 달력 일정 → 보관함. 반복 일정은 반복을 풀고 단일 항목으로 들어감 (되돌리기 가능)
+function archiveTask(t){
+  const prev={...t};
+  const n={...t,archived:true,repeat:null,done:false,updatedAt:Date.now()};
+  delete n.doneDates;delete n.skipDates;
+  store.put(n);
+  toast('보관함으로 옮겼습니다',()=>store.put(prev));
+}
+
+/* ───────────── 드래그로 순서 바꾸기 (같은 색·같은 완료상태 안에서만) ───────────── */
+let drag=null;
+function startDrag(e,row){
+  if(e.button!==undefined&&e.button!==0)return;
+  e.preventDefault();
+  const grip=e.currentTarget;
+  try{grip.setPointerCapture(e.pointerId);}catch(_){}
+  const r=row.getBoundingClientRect();
+  const ghost=row.cloneNode(true);
+  ghost.className=row.className+' ghost';
+  Object.assign(ghost.style,{position:'fixed',left:r.left+'px',top:r.top+'px',width:r.width+'px',zIndex:50,pointerEvents:'none'});
+  document.body.appendChild(ghost);
+  row.classList.add('dragging');
+  drag={row,ghost,grip,box:row.parentNode,offY:e.clientY-r.top,group:row.dataset.group,moved:false};
+  grip.onpointermove=onDragMove;
+  grip.onpointerup=grip.onpointercancel=endDrag;
+}
+function onDragMove(e){
+  if(!drag)return;
+  drag.moved=true;
+  drag.ghost.style.top=(e.clientY-drag.offY)+'px';
+  // 같은 그룹 줄들만 대상으로, 포인터 위치에 따라 DOM 안에서 자리 이동 (그룹 밖으로는 못 나감)
+  const rows=[...drag.box.querySelectorAll('.task')].filter(x=>x.dataset.group===drag.group&&x!==drag.row);
+  if(!rows.length)return;
+  const y=e.clientY;
+  let before=null;
+  for(const x of rows){const b=x.getBoundingClientRect();if(y<b.top+b.height/2){before=x;break;}}
+  if(before){ if(drag.row.nextElementSibling!==before) before.parentNode.insertBefore(drag.row,before); }
+  else{ const last=rows[rows.length-1]; if(last.nextElementSibling!==drag.row) last.parentNode.insertBefore(drag.row,last.nextElementSibling); }
+}
+function endDrag(){
+  if(!drag)return;
+  const {row,ghost,grip,box,group,moved}=drag;drag=null;
+  grip.onpointermove=grip.onpointerup=grip.onpointercancel=null;
+  ghost.remove();row.classList.remove('dragging');
+  if(!moved)return;
+  // 화면 순서대로 order 번호 새로 매김 (바뀐 것만 저장)
+  const ids=[...box.querySelectorAll('.task')].filter(x=>x.dataset.group===group).map(x=>x.dataset.id);
+  ids.forEach((id,i)=>{const t=tasks[id];if(t&&t.order!==i*10)store.put({...t,order:i*10,updatedAt:Date.now()});});
 }
 
 /* ───────────── 동작 ───────────── */
@@ -462,6 +566,13 @@ function toggleDone(t,date){
   store.put(n);
 }
 async function moveInstance(t,fromDate,toDate){
+  if(t.archived){
+    // 보관함 → 달력으로 (날짜 지정)
+    const n={...t,archived:false,date:toDate,done:false,updatedAt:Date.now()};
+    await store.put(n);
+    selDate=toDate;const d=parse(toDate);viewY=d.getFullYear();viewM=d.getMonth();render();
+    return;
+  }
   if(toDate===fromDate) return;
   if(isRepeat(t)){
     // 반복 일정: 이 날만 빼고, 새 날짜에 단일 일정으로 복사
@@ -529,20 +640,29 @@ $('cfOk').onclick=()=>{const f=cfFn;cfFn=null;hide();if(f)setTimeout(f,150);};
 
 /* ───────────── 시트 열고 닫기 ───────────── */
 let cur=null, curDate=null, openSheet=null;
-function show(id){openSheet=$(id);$('backdrop').classList.add('show');openSheet.classList.add('show');$('toast').classList.remove('show');toastUndoFn=null;}
+function show(id){document.querySelectorAll('.sheet.show').forEach(s=>{if(s.id!==id)s.classList.remove('show');});openSheet=$(id);$('backdrop').classList.add('show');openSheet.classList.add('show');$('toast').classList.remove('show');toastUndoFn=null;}
 function hide(){if(!openSheet)return;openSheet.classList.remove('show');$('backdrop').classList.remove('show');openSheet=null;}
 $('backdrop').onclick=hide;
 
+// 메뉴를 보관함에서 열었으면 작업 후 보관함으로 돌아감
+let fromArch=false;
+function backToArch(){if(fromArch)setTimeout(openArchive,150);}
 function openActions(t,date){
-  cur=t;curDate=date;$('asTitle').textContent=t.title;
-  $('asToday').classList.toggle('hidden',date===todayStr());
+  cur=t;curDate=date||todayStr();fromArch=!!t.archived;
+  $('asTitle').textContent=t.title;
+  const a=!!t.archived;
+  $('asToday').classList.toggle('hidden',!a&&date===todayStr());
+  $('asRepeat').classList.toggle('hidden',a);
+  $('asArchive').classList.toggle('hidden',a);
+  $('asMove').lastChild.textContent=a?'날짜 정하기':'날짜 바꾸기';
   [...$('asPrio').children].forEach(b=>b.classList.toggle('on',b.dataset.p===priOf(t)));
   show('actionSheet');
 }
 // 일정 메뉴에서 색 바로 바꾸기
 $('asPrio').onclick=e=>{const b=e.target.closest('.pc');if(!b||!cur)return;
-  const p=b.dataset.p; if(p===priOf(cur)){hide();return;}
-  store.put({...cur,priority:p,updatedAt:Date.now()}); hide(); toast(PRI_LABEL[p]+'으로 바꿨습니다');};
+  const p=b.dataset.p; if(p===priOf(cur)){hide();backToArch();return;}
+  store.put({...cur,priority:p,updatedAt:Date.now()}); hide(); toast(PRI_LABEL[p]+'으로 바꿨습니다'); backToArch();};
+$('asArchive').onclick=()=>{const t=cur;hide();archiveTask(t);};
 $('asToday').onclick=()=>{const t=cur,d=curDate;hide();moveInstance(t,d,todayStr());toast('오늘로 옮겼습니다');};
 
 /* 날짜 고르기 달력 */
@@ -564,11 +684,11 @@ function renderPick(){
 function openPick(date){pickDate=date;const d=parse(date);pickY=d.getFullYear();pickM=d.getMonth();renderPick();show('moveSheet');}
 $('pickPrev').onclick=()=>{pickM--;if(pickM<0){pickM=11;pickY--;}renderPick();};
 $('pickNext').onclick=()=>{pickM++;if(pickM>11){pickM=0;pickY++;}renderPick();};
-$('asEdit').onclick=()=>{hide();setTimeout(()=>openEdit(cur),150);};
+$('asEdit').onclick=()=>{const t=cur;hide();setTimeout(()=>openEdit(t,false,!!t.archived),150);};
 $('asDelete').onclick=()=>{
   const t=cur,d=curDate;hide();
   if(isRepeat(t)) setTimeout(()=>show('delSheet'),150);
-  else deleteInstance(t,d,true);
+  else{deleteInstance(t,d,true);backToArch();}
 };
 $('asTomorrow').onclick=()=>{const t=cur,d=curDate;hide();moveInstance(t,d,addDays(d,1));toast('내일로 옮겼습니다');};
 $('asMove').onclick=()=>{hide();setTimeout(()=>openPick(curDate),150);};
@@ -597,11 +717,13 @@ $('fRepeat').onclick=e=>{const b=e.target.closest('button');if(!b)return;
 $('fWeekdays').onclick=e=>{const b=e.target.closest('button');if(!b)return;const d=+b.dataset.d;
   if(fWeek.has(d))fWeek.delete(d);else fWeek.add(d);setRepeatUI('weekly',[...fWeek]);};
 
-function openEdit(t,focusRepeat){
-  cur=t||null;
-  $('esTitle').textContent=t?(focusRepeat?'반복 설정':'일정 수정'):'일정 추가';
+let fArchived=false;   // 보관함 항목 편집/추가 중이면 날짜·반복 칸 숨김
+function openEdit(t,focusRepeat,archivedMode){
+  cur=t||null;fArchived=!!archivedMode;
+  $('esTitle').textContent=fArchived?(t?'보관함 항목 수정':'보관함에 추가'):t?(focusRepeat?'반복 설정':'일정 수정'):'일정 추가';
   $('fTitle').value=t?t.title:'';
   $('fDate').value=t?t.date:selDate;
+  $('fDated').classList.toggle('hidden',fArchived);
   setPrioUI(t?priOf(t):'red');
   setRepeatUI(t&&t.repeat?t.repeat.type:'none',t&&t.repeat?t.repeat.weekdays:[]);
   show('editSheet');
@@ -613,6 +735,13 @@ $('fTitle').onkeydown=e=>{if(e.key==='Enter')$('fSave').click();};
 $('fSave').onclick=()=>{
   const title=$('fTitle').value.trim(), date=$('fDate').value;
   if(!title){$('fTitle').focus();return;}
+  if(fArchived){
+    // 보관함 항목: 날짜·반복 없이 제목·색만
+    const now=Date.now();
+    if(cur) store.put({...cur,title,priority:fPri,updatedAt:now});
+    else store.put({id:uid(),title,date:todayStr(),done:false,repeat:null,priority:fPri,archived:true,createdAt:now,updatedAt:now});
+    hide();setTimeout(openArchive,150);return;
+  }
   if(!date){$('fDate').focus();return;}
   if(fRepeatType==='weekly'&&fWeek.size===0){toast('요일을 선택해 주세요');return;}
   const repeat=fRepeatType==='none'?null:{type:fRepeatType,weekdays:fRepeatType==='weekly'?[...fWeek].sort():[]};
