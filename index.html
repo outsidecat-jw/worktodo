@@ -118,6 +118,24 @@ input,select{font:inherit}
 .switch .kn::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s}
 .switch.on .kn{background:#34c759}.switch.on .kn::after{left:16px}
 
+/* 시간·알림 */
+.ic.yellow{background:#f5b301}
+.timerow{display:flex;gap:8px;align-items:center}
+.timerow input[type=time]{flex:1;border:0;background:#f2f2f4;border-radius:12px;padding:12px 14px;font-size:16px;outline:none;-webkit-appearance:none;appearance:none;color:var(--text);min-height:48px}
+.timerow .clr{padding:0 14px;height:48px;border-radius:12px;background:#f2f2f4;font-size:13px;font-weight:600;color:var(--chipText);flex:none}
+.alarm-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.alarm-grid button{padding:9px 6px;border-radius:10px;background:#f2f2f4;font-size:13px;font-weight:600;color:var(--chipText);display:flex;align-items:center;justify-content:center;gap:6px}
+.alarm-grid button .bx{width:16px;height:16px;border-radius:5px;background:#fff;box-shadow:inset 0 0 0 1.5px #c7c7cc;display:flex;align-items:center;justify-content:center;flex:none}
+.alarm-grid button .bx svg{width:11px;height:11px;stroke:#fff;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round;opacity:0}
+.alarm-grid button.on{background:var(--text);color:#fff}
+.alarm-grid button.on .bx{background:#34c759;box-shadow:none}
+.alarm-grid button.on .bx svg{opacity:1}
+.task .tm{font-size:11.5px;font-weight:700;color:#7a5a00;background:#fff3c4;border-radius:6px;padding:2px 6px;flex:none;display:inline-flex;align-items:center;gap:3px}
+.task .tm svg{width:11px;height:11px;stroke:#7a5a00;stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.task.done .tm{color:var(--done);background:#f2f2f4}
+.task.done .tm svg{stroke:var(--done)}
+.task.timed .grip{visibility:hidden}
+
 /* 검색 */
 .search-in{width:100%;border:0;background:#f2f2f4;border-radius:12px;padding:13px 14px;font-size:16px;outline:none;-webkit-appearance:none;color:var(--text);margin-bottom:8px}
 .search-list{max-height:60vh;overflow:auto;margin:0 -4px}
@@ -307,6 +325,22 @@ input,select{font:inherit}
 
 <div class="backdrop" id="backdrop"></div>
 
+<!-- 알림 설정 시트 -->
+<div class="sheet" id="alarmSheet">
+  <div class="grab"></div>
+  <h2 id="alTitle">알림 설정</h2>
+  <div class="form">
+    <label>일정 시간</label>
+    <div class="timerow"><input type="time" id="alTime"><button type="button" id="alTimeClear" class="clr">없음</button></div>
+    <label>알림 <span class="opt">(여러 개 선택 가능)</span></label>
+    <div class="alarm-grid" id="alGrid"></div>
+    <div class="actions">
+      <button id="alCancel">취소</button>
+      <button id="alSave" class="primary">저장</button>
+    </div>
+  </div>
+</div>
+
 <!-- 검색 시트 -->
 <div class="sheet" id="searchSheet">
   <div class="grab"></div>
@@ -330,6 +364,7 @@ input,select{font:inherit}
     <button id="asTomorrow"><span class="ic blue"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg></span>내일 하기</button>
     <button id="asMove"><span class="ic purple"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4M16 3v4"/></svg></span>날짜 바꾸기</button>
     <button id="asRepeat"><span class="ic green"><svg viewBox="0 0 24 24"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg></span>반복 설정</button>
+    <button id="asAlarm"><span class="ic yellow"><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0112 0v5l2 2H4z"/><path d="M10 20a2 2 0 004 0"/></svg></span>알림 설정</button>
     <button id="asArchive"><span class="ic gray"><svg viewBox="0 0 24 24"><path d="M3 4h18v4H3z"/><path d="M5 8v12h14V8"/><path d="M10 12h4"/></svg></span>보관함으로 이동</button>
   </div>
 </div>
@@ -348,6 +383,8 @@ input,select{font:inherit}
     <div id="fDated">
     <label>날짜</label>
     <input type="date" id="fDate">
+    <label>시간 <span class="opt">(선택 · 알림을 쓰려면 필요)</span></label>
+    <div class="timerow"><input type="time" id="fTime"><button type="button" id="fTimeClear" class="clr">없음</button></div>
     <label>반복</label>
     <div class="seg" id="fRepeat">
       <button data-v="none" class="on">없음</button>
@@ -495,12 +532,15 @@ const priOf=t=>PRI.includes(t.priority)?t.priority:'blue';
 // 수동 순서. 정한 적 없으면 맨 아래(새 일정은 아래에 붙음)
 const ord=t=>typeof t.order==='number'?t.order:Number.MAX_SAFE_INTEGER;
 const live=()=>Object.values(tasks).filter(t=>!t.deleted&&!t.archived);      // 휴지통·보관함 제외 (달력용)
-const sortRows=(list,date)=>list.sort((a,b)=>(isDone(a,date)-isDone(b,date))||(PRI.indexOf(priOf(a))-PRI.indexOf(priOf(b)))||(ord(a)-ord(b))||((a.createdAt||0)-(b.createdAt||0)));
+// 정렬: 완료 아래 → 색(빨강>파랑>초록) → 시간 있는 게 위(시간순) → 수동 순서 → 만든 순
+const tkey=t=>t.time?t.time:'~';   // '~' 는 모든 시각 문자열보다 뒤
+const sortRows=(list,date)=>list.sort((a,b)=>(isDone(a,date)-isDone(b,date))||(PRI.indexOf(priOf(a))-PRI.indexOf(priOf(b)))||(tkey(a)<tkey(b)?-1:tkey(a)>tkey(b)?1:0)||(ord(a)-ord(b))||((a.createdAt||0)-(b.createdAt||0)));
+const ALARM_OPTS=[[0,'정각'],[5,'5분 전'],[10,'10분 전'],[15,'15분 전'],[30,'30분 전'],[60,'1시간 전'],[120,'2시간 전'],[180,'3시간 전'],[360,'6시간 전'],[720,'12시간 전'],[1440,'1일 전'],[2880,'2일 전']];
+const alarmsOf=t=>Array.isArray(t.alarms)?t.alarms:[];
 const archived=()=>sortRows(Object.values(tasks).filter(t=>!t.deleted&&t.archived),null);
 const trashed=()=>Object.values(tasks).filter(t=>t.deleted).sort((a,b)=>(b.deletedAt||0)-(a.deletedAt||0));
 function instancesOn(date){
-  return live().filter(t=>occursOn(t,date))
-    .sort((a,b)=>(isDone(a,date)-isDone(b,date))||(PRI.indexOf(priOf(a))-PRI.indexOf(priOf(b)))||(ord(a)-ord(b))||((a.createdAt||0)-(b.createdAt||0)));
+  return sortRows(live().filter(t=>occursOn(t,date)),date);
 }
 
 /* ───────────── 저장소: 로컬 ───────────── */
@@ -628,7 +668,7 @@ function rolloverIfNeeded(force){
   for(const t of overdueTasks()) store.put({...t,origDate:t.origDate||t.date,date:today,updatedAt:Date.now()});
 }
 async function bulkMove(list,toDate){for(const t of list){await moveInstance(t,t.date,toDate);}}
-function archiveTaskSilent(t){const n={...t,archived:true,repeat:null,done:false,updatedAt:Date.now()};delete n.doneDates;delete n.skipDates;delete n.origDate;store.put(n);}
+function archiveTaskSilent(t){const n={...t,archived:true,repeat:null,done:false,alarms:[],updatedAt:Date.now()};delete n.doneDates;delete n.skipDates;delete n.origDate;store.put(n);}
 
 /* ───────────── 여러 개 선택 ───────────── */
 let selMode=false, selIds=new Set();
@@ -684,9 +724,11 @@ function makeRow(t,date){
   row.className='task'+(done?' done':'');
   row.dataset.p=priOf(t);
   row.dataset.id=t.id;
-  row.dataset.group=(done?'d':'u')+'-'+priOf(t);   // 드래그 범위: 같은 완료상태 + 같은 색
+  row.dataset.group=(done?'d':'u')+'-'+priOf(t)+(t.time?'-t':'');   // 드래그 범위: 같은 완료상태 + 같은 색 (시간 있는 건 시간순 고정)
+  if(t.time)row.classList.add('timed');
+  const tmChip=t.time?`<span class="tm">${t.time}${alarmsOf(t).length?'<svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0112 0v5l2 2H4z"/><path d="M10 20a2 2 0 004 0"/></svg>':''}</span>`:'';
   row.innerHTML=`<button class="chk" aria-label="완료"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L19 7"/></svg></button>
-    <button class="title"><span class="tt"></span><span class="nt hidden"></span><span class="since hidden"></span></button>${isRepeat(t)?`<span class="rep">${repeatLabel(t)}</span>`:''}
+    <button class="title"><span class="tt"></span><span class="nt hidden"></span><span class="since hidden"></span></button>${tmChip}${isRepeat(t)?`<span class="rep">${repeatLabel(t)}</span>`:''}
     <span class="grip" title="끌어서 순서 바꾸기"><svg viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>`;
   row.querySelector('.tt').textContent=t.title;
   if(t.note){const n=row.querySelector('.nt');n.textContent=t.note;n.classList.remove('hidden');}
@@ -745,7 +787,7 @@ $('archAdd').onclick=()=>{hide();setTimeout(()=>openEdit(null,false,true),150);}
 // 달력 일정 → 보관함. 반복 일정은 반복을 풀고 단일 항목으로 들어감 (되돌리기 가능)
 function archiveTask(t){
   const prev={...t};
-  const n={...t,archived:true,repeat:null,done:false,updatedAt:Date.now()};
+  const n={...t,archived:true,repeat:null,done:false,alarms:[],updatedAt:Date.now()};
   delete n.doneDates;delete n.skipDates;
   store.put(n);
   toast('보관함으로 옮겼습니다',()=>store.put(prev));
@@ -824,7 +866,7 @@ async function moveInstance(t,fromDate,toDate){
     // 반복 일정: 이 날만 빼고, 새 날짜에 단일 일정으로 복사
     const n={...t,skipDates:{...(t.skipDates||{}),[fromDate]:true},updatedAt:Date.now()};
     await store.put(n);
-    await store.put({id:uid(),title:t.title,date:toDate,done:false,repeat:null,priority:priOf(t),createdAt:Date.now(),updatedAt:Date.now()});
+    await store.put({id:uid(),title:t.title,note:t.note||'',date:toDate,time:t.time||null,alarms:alarmsOf(t),done:false,repeat:null,priority:priOf(t),createdAt:Date.now(),updatedAt:Date.now()});
   }else{
     const n={...t,date:toDate,done:false,updatedAt:Date.now()};delete n.origDate;   // 직접 옮기면 "n/n부터" 표시 해제
     await store.put(n);
@@ -901,6 +943,7 @@ function openActions(t,date){
   $('asToday').classList.toggle('hidden',!a&&date===todayStr());
   $('asRepeat').classList.toggle('hidden',a);
   $('asArchive').classList.toggle('hidden',a);
+  $('asAlarm').classList.toggle('hidden',a);   // 보관함 항목은 날짜가 없어 알림 불가
   $('asMove').lastChild.textContent=a?'날짜 정하기':'날짜 바꾸기';
   [...$('asPrio').children].forEach(b=>b.classList.toggle('on',b.dataset.p===priOf(t)));
   show('actionSheet');
@@ -940,6 +983,21 @@ $('asDelete').onclick=()=>{
 $('asTomorrow').onclick=()=>{const t=cur,d=curDate;hide();moveInstance(t,d,addDays(d,1));toast('내일로 옮겼습니다');backToArch();};
 $('asMove').onclick=()=>{hide();setTimeout(()=>openPick(curDate),150);};
 $('asRepeat').onclick=()=>{hide();setTimeout(()=>openEdit(cur,true),150);};
+$('asAlarm').onclick=()=>{const t=cur;hide();setTimeout(()=>openAlarm(t),150);};
+
+/* 알림 설정 시트: 일정 시간 + 여러 개 체크 */
+let alSel=new Set();
+function renderAlGrid(){const g=$('alGrid');g.innerHTML='';for(const [m,label] of ALARM_OPTS){const b=document.createElement('button');b.type='button';b.className=alSel.has(m)?'on':'';b.innerHTML=`<span class="bx"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L19 7"/></svg></span>${label}`;b.onclick=()=>{if(alSel.has(m))alSel.delete(m);else alSel.add(m);renderAlGrid();};g.appendChild(b);}}
+function openAlarm(t){cur=t;$('alTitle').textContent=t.title;$('alTime').value=t.time||'';alSel=new Set(alarmsOf(t));renderAlGrid();show('alarmSheet');}
+$('alTimeClear').onclick=()=>{$('alTime').value='';};
+$('fTimeClear').onclick=()=>{$('fTime').value='';};
+$('alCancel').onclick=hide;
+$('alSave').onclick=()=>{
+  const time=$('alTime').value||null; const alarms=[...alSel].sort((a,b)=>a-b);
+  if(alarms.length&&!time){toast('시간을 먼저 정해 주세요');$('alTime').focus();return;}
+  store.put({...cur,time,alarms:time?alarms:[],updatedAt:Date.now()});
+  hide(); toast(time?(alarms.length?`${time} · 알림 ${alarms.length}개 저장`:`${time} 저장 (알림 없음)`):'시간·알림을 지웠습니다');
+};
 
 $('dOne').onclick=()=>{hide();deleteInstance(cur,curDate,false);};
 $('dAll').onclick=()=>{hide();deleteInstance(cur,curDate,true);};
@@ -973,6 +1031,7 @@ function openEdit(t,focusRepeat,archivedMode){
   $('esTitle').textContent=fArchived?(t?'보관함 항목 수정':'보관함에 추가'):t?(focusRepeat?'반복 설정':'일정 수정'):'일정 추가';
   $('fTitle').value=t?t.title:'';
   $('fNote').value=t&&t.note?t.note:'';
+  $('fTime').value=t&&t.time?t.time:'';
   $('fDate').value=t?t.date:selDate;
   $('fDated').classList.toggle('hidden',fArchived);
   setPrioUI(t?priOf(t):'red');
@@ -984,7 +1043,7 @@ $('addBtn').onclick=()=>openEdit(null);
 $('fCancel').onclick=hide;
 $('fTitle').onkeydown=e=>{if(e.key==='Enter')$('fSave').click();};
 $('fSave').onclick=()=>{
-  const title=$('fTitle').value.trim(), date=$('fDate').value, note=$('fNote').value.trim();
+  const title=$('fTitle').value.trim(), date=$('fDate').value, note=$('fNote').value.trim(), time=$('fTime').value||null;
   if(!title){$('fTitle').focus();return;}
   if(fArchived){
     // 보관함 항목: 날짜·반복 없이 제목·색만
@@ -998,11 +1057,12 @@ $('fSave').onclick=()=>{
   const repeat=fRepeatType==='none'?null:{type:fRepeatType,weekdays:fRepeatType==='weekly'?[...fWeek].sort():[]};
   const now=Date.now();
   if(cur){
-    const n={...cur,title,note,date,repeat,priority:fPri,updatedAt:now};
+    const n={...cur,title,note,date,time,repeat,priority:fPri,updatedAt:now};
+    if(!time)n.alarms=[];   // 시간을 지우면 알림도 해제
     if(!repeat){delete n.doneDates;delete n.skipDates;n.done=!!cur.done;}
     store.put(n);
   }else{
-    store.put({id:uid(),title,note,date,done:false,repeat,priority:fPri,createdAt:now,updatedAt:now});
+    store.put({id:uid(),title,note,date,time,alarms:[],done:false,repeat,priority:fPri,createdAt:now,updatedAt:now});
   }
   hide();
   render();
