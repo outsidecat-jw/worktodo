@@ -78,7 +78,7 @@ input,select{font:inherit}
 .task .title{flex:1;text-align:left;min-width:0;white-space:normal;overflow-wrap:anywhere;word-break:keep-all;line-height:1.4;padding:2px 0}
 .task.done .title{color:var(--done);text-decoration:line-through}
 .task .rep{font-size:11px;color:var(--sub);background:#f2f2f4;border-radius:6px;padding:2px 6px;flex:none}
-.task .grip{width:28px;height:28px;margin-right:-6px;display:flex;align-items:center;justify-content:center;flex:none;cursor:grab;touch-action:none;color:#c7c7cc}
+.task .grip{width:28px;height:28px;margin-right:-6px;display:flex;align-items:center;justify-content:center;flex:none;cursor:grab;touch-action:none;color:#c7c7cc;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .task .grip svg{width:16px;height:16px;fill:currentColor}
 .task .grip:active{cursor:grabbing;color:var(--sub)}
 .task.dragging{opacity:.25}
@@ -446,7 +446,10 @@ class FireStore{
 const $=id=>document.getElementById(id);
 function setStatus(cls,text){const s=$('status');s.className='status '+cls;$('statusText').textContent=text;}
 
-function render(){renderCalendar();renderList();renderArchBadge();if($('archSheet').classList.contains('show'))renderArchive();purgeOld();}
+function render(){
+  if(drag){renderPending=true;return;}   // 끄는 중엔 미룸 (endDrag 에서 처리)
+  renderCalendar();renderList();renderArchBadge();if($('archSheet').classList.contains('show'))renderArchive();purgeOld();
+}
 
 function renderCalendar(){
   $('monthLabel').textContent=`${viewY}년 ${viewM+1}월`;
@@ -554,9 +557,14 @@ function archiveTask(t){
 }
 
 /* ───────────── 드래그로 순서 바꾸기 (같은 색·같은 완료상태 안에서만) ───────────── */
-let drag=null;
+let drag=null, renderPending=false;
+// 아이폰에서 손을 뗀 신호가 손잡이에 안 오는 경우가 있어, 신호는 window 에서 받고
+// 끄는 동안은 목록을 다시 그리지 않음(다시 그리면 손잡이가 사라져 끝 신호를 못 받음)
+const DRAG_END_EVENTS=['pointerup','pointercancel','touchend','touchcancel','blur'];
+const stopTouchScroll=e=>{if(drag)e.preventDefault();};
 function startDrag(e,row){
   if(e.button!==undefined&&e.button!==0)return;
+  if(drag)endDrag();                       // 이전 것이 남아 있으면 먼저 정리
   e.preventDefault();
   const grip=e.currentTarget;
   try{grip.setPointerCapture(e.pointerId);}catch(_){}
@@ -566,12 +574,14 @@ function startDrag(e,row){
   Object.assign(ghost.style,{position:'fixed',left:r.left+'px',top:r.top+'px',width:r.width+'px',zIndex:50,pointerEvents:'none'});
   document.body.appendChild(ghost);
   row.classList.add('dragging');
-  drag={row,ghost,grip,box:row.parentNode,offY:e.clientY-r.top,group:row.dataset.group,moved:false};
-  grip.onpointermove=onDragMove;
-  grip.onpointerup=grip.onpointercancel=endDrag;
+  drag={row,ghost,box:row.parentNode,offY:e.clientY-r.top,group:row.dataset.group,moved:false,pid:e.pointerId};
+  window.addEventListener('pointermove',onDragMove,{passive:false});
+  DRAG_END_EVENTS.forEach(n=>window.addEventListener(n,endDrag,true));
+  window.addEventListener('touchmove',stopTouchScroll,{passive:false});   // 끄는 동안 화면 스크롤 막기
 }
 function onDragMove(e){
-  if(!drag)return;
+  if(!drag||e.pointerId!==drag.pid)return;
+  e.preventDefault();
   drag.moved=true;
   drag.ghost.style.top=(e.clientY-drag.offY)+'px';
   // 같은 그룹 줄들만 대상으로, 포인터 위치에 따라 DOM 안에서 자리 이동 (그룹 밖으로는 못 나감)
@@ -585,13 +595,18 @@ function onDragMove(e){
 }
 function endDrag(){
   if(!drag)return;
-  const {row,ghost,grip,box,group,moved}=drag;drag=null;
-  grip.onpointermove=grip.onpointerup=grip.onpointercancel=null;
+  const {row,ghost,box,group,moved}=drag;drag=null;
+  window.removeEventListener('pointermove',onDragMove);
+  DRAG_END_EVENTS.forEach(n=>window.removeEventListener(n,endDrag,true));
+  window.removeEventListener('touchmove',stopTouchScroll);
   ghost.remove();row.classList.remove('dragging');
-  if(!moved)return;
-  // 화면 순서대로 order 번호 새로 매김 (바뀐 것만 저장)
-  const ids=[...box.querySelectorAll('.task')].filter(x=>x.dataset.group===group).map(x=>x.dataset.id);
-  ids.forEach((id,i)=>{const t=tasks[id];if(t&&t.order!==i*10)store.put({...t,order:i*10,updatedAt:Date.now()});});
+  document.querySelectorAll('.task.ghost').forEach(g=>g.remove());   // 혹시 남은 그림자 정리
+  if(moved){
+    // 화면 순서대로 order 번호 새로 매김 (바뀐 것만 저장)
+    const ids=[...box.querySelectorAll('.task')].filter(x=>x.dataset.group===group).map(x=>x.dataset.id);
+    ids.forEach((id,i)=>{const t=tasks[id];if(t&&t.order!==i*10)store.put({...t,order:i*10,updatedAt:Date.now()});});
+  }
+  if(renderPending){renderPending=false;render();}   // 끄는 동안 미뤄둔 화면 갱신
 }
 
 /* ───────────── 동작 ───────────── */
