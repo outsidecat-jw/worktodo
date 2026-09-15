@@ -621,7 +621,7 @@ async function moveInstance(t,fromDate,toDate){
     // 보관함 → 달력으로 (날짜 지정)
     const n={...t,archived:false,date:toDate,done:false,updatedAt:Date.now()};
     await store.put(n);
-    selDate=toDate;const d=parse(toDate);viewY=d.getFullYear();viewM=d.getMonth();render();
+    render();
     return;
   }
   if(toDate===fromDate) return;
@@ -714,7 +714,7 @@ $('asPrio').onclick=e=>{const b=e.target.closest('.pc');if(!b||!cur)return;
   const p=b.dataset.p; if(p===priOf(cur)){hide();backToArch();return;}
   store.put({...cur,priority:p,updatedAt:Date.now()}); hide(); toast(PRI_LABEL[p]+'으로 바꿨습니다'); backToArch();};
 $('asArchive').onclick=()=>{const t=cur;hide();archiveTask(t);};
-$('asToday').onclick=()=>{const t=cur,d=curDate;hide();moveInstance(t,d,todayStr());toast('오늘로 옮겼습니다');};
+$('asToday').onclick=()=>{const t=cur,d=curDate;hide();moveInstance(t,d,todayStr());toast('오늘로 옮겼습니다');backToArch();};
 
 /* 날짜 고르기 달력 */
 let pickY,pickM,pickDate;
@@ -741,7 +741,7 @@ $('asDelete').onclick=()=>{
   if(isRepeat(t)) setTimeout(()=>show('delSheet'),150);
   else{deleteInstance(t,d,true);backToArch();}
 };
-$('asTomorrow').onclick=()=>{const t=cur,d=curDate;hide();moveInstance(t,d,addDays(d,1));toast('내일로 옮겼습니다');};
+$('asTomorrow').onclick=()=>{const t=cur,d=curDate;hide();moveInstance(t,d,addDays(d,1));toast('내일로 옮겼습니다');backToArch();};
 $('asMove').onclick=()=>{hide();setTimeout(()=>openPick(curDate),150);};
 $('asRepeat').onclick=()=>{hide();setTimeout(()=>openEdit(cur,true),150);};
 
@@ -750,7 +750,8 @@ $('dAll').onclick=()=>{hide();deleteInstance(cur,curDate,true);};
 $('dCancel').onclick=hide;
 
 $('mCancel').onclick=hide;
-$('mSave').onclick=()=>{const v=pickDate;if(!v)return;hide();moveInstance(cur,curDate,v);selDate=v;const d=parse(v);viewY=d.getFullYear();viewM=d.getMonth();render();toast('날짜를 옮겼습니다');};
+// 날짜를 옮겨도 보고 있던 날짜는 그대로 (형님 요청 2026-09-15)
+$('mSave').onclick=()=>{const v=pickDate;if(!v)return;hide();moveInstance(cur,curDate,v);const d=parse(v);toast(`${d.getMonth()+1}월 ${d.getDate()}일로 옮겼습니다`);backToArch();};
 
 /* 추가/수정 폼 */
 let fRepeatType='none', fWeek=new Set(), fPri='red';
@@ -805,7 +806,8 @@ $('fSave').onclick=()=>{
     store.put({id:uid(),title,date,done:false,repeat,priority:fPri,createdAt:now,updatedAt:now});
   }
   hide();
-  selDate=date;const d=parse(date);viewY=d.getFullYear();viewM=d.getMonth();render();
+  render();
+  if(date!==selDate){const d=parse(date);toast(`${d.getMonth()+1}월 ${d.getDate()}일에 저장했습니다`);}
 };
 
 /* 달력 이동 */
