@@ -136,6 +136,12 @@ input,select{font:inherit}
 .task.done .tm svg{stroke:var(--done)}
 .task.timed .grip{visibility:hidden}
 
+.pushrow{display:flex;align-items:center;gap:8px;background:#f7f7f8;border-radius:12px;padding:10px 12px;font-size:13px;color:var(--sub);margin-bottom:4px}
+.pushrow .pdot{width:8px;height:8px;border-radius:50%;background:#c7c7cc;flex:none}
+.pushrow.on .pdot{background:#34c759}.pushrow.off .pdot{background:#ff9f0a}.pushrow.err .pdot{background:var(--red)}
+.pushrow span:nth-child(2){flex:1}
+.pushrow button{background:var(--text);color:#fff;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:700;flex:none}
+
 /* 검색 */
 .search-in{width:100%;border:0;background:#f2f2f4;border-radius:12px;padding:13px 14px;font-size:16px;outline:none;-webkit-appearance:none;color:var(--text);margin-bottom:8px}
 .search-list{max-height:60vh;overflow:auto;margin:0 -4px}
@@ -329,6 +335,7 @@ input,select{font:inherit}
 <div class="sheet" id="alarmSheet">
   <div class="grab"></div>
   <h2 id="alTitle">알림 설정</h2>
+  <div class="pushrow" id="pushRow"><span class="pdot"></span><span id="pushText">이 기기 알림 확인 중…</span><button id="pushBtn" class="hidden">켜기</button></div>
   <div class="form">
     <label>일정 시간</label>
     <div class="timerow"><input type="time" id="alTime"><button type="button" id="alTimeClear" class="clr">없음</button></div>
@@ -567,6 +574,7 @@ class FireStore{
     const u=firebase.firestore().collection('users').doc(user.uid);
     this.col=u.collection('tasks');
     this.sdoc=u.collection('meta').doc('settings');
+    this.pushCol=u.collection('push');
   }
   async init(onChange){
     this.onChange=onChange;
@@ -990,7 +998,50 @@ let alSel=new Set();
 function renderAlGrid(){const g=$('alGrid');g.innerHTML='';for(const [m,label] of ALARM_OPTS){const b=document.createElement('button');b.type='button';b.className=alSel.has(m)?'on':'';b.innerHTML=`<span class="bx"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L19 7"/></svg></span>${label}`;b.onclick=()=>{if(alSel.has(m))alSel.delete(m);else alSel.add(m);renderAlGrid();};g.appendChild(b);}}
 // 시간이 없으면 지금 시각(10분 단위 올림)을 기본으로 채워 둠
 function nowRounded(){const d=new Date();d.setMinutes(Math.ceil(d.getMinutes()/10)*10,0,0);return pad(d.getHours()%24)+':'+pad(d.getMinutes());}
-function openAlarm(t){cur=t;$('alTitle').textContent=t.title;$('alTime').value=t.time||nowRounded();alSel=new Set(alarmsOf(t));renderAlGrid();show('alarmSheet');}
+function openAlarm(t){cur=t;$('alTitle').textContent=t.title;$('alTime').value=t.time||nowRounded();alSel=new Set(alarmsOf(t));renderAlGrid();show('alarmSheet');refreshPushRow();}
+
+/* ───────────── 이 기기에서 푸시 알림 받기 ───────────── */
+// 서버(GitHub Actions)가 보내는 알림을 받으려면 기기마다 한 번 "켜기". 구독 정보는 users/{uid}/push/{기기id} 에 저장.
+const b64ToU8=s=>{const p='='.repeat((4-s.length%4)%4);const b=atob((s+p).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(b,c=>c.charCodeAt(0));};
+function deviceId(){let id=null;try{id=localStorage.getItem('worktodo.device');if(!id){id=uid();localStorage.setItem('worktodo.device',id);}}catch(e){id=id||'dev';}return id;}
+function pushSupported(){return 'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window&&!!window.VAPID_PUBLIC_KEY&&location.protocol==='https:';}
+function setPushRow(cls,text,btn){const r=$('pushRow');r.className='pushrow '+cls;$('pushText').textContent=text;const b=$('pushBtn');b.classList.toggle('hidden',!btn);if(btn)b.textContent=btn;}
+async function refreshPushRow(){
+  if(!(store instanceof FireStore)){setPushRow('','로컬 모드에서는 알림을 받을 수 없습니다');return;}
+  if(!pushSupported()){
+    const ios=/iPhone|iPad/.test(navigator.userAgent)&&!window.navigator.standalone;
+    setPushRow('err',ios?'아이폰은 홈 화면에 추가한 앱에서만 알림을 켤 수 있습니다':'이 브라우저는 알림을 지원하지 않습니다');return;
+  }
+  if(Notification.permission==='denied'){setPushRow('err','알림이 차단되어 있습니다. 기기 설정에서 허용해 주세요');return;}
+  const reg=await navigator.serviceWorker.ready; const sub=await reg.pushManager.getSubscription();
+  if(sub&&Notification.permission==='granted'){setPushRow('on','이 기기 알림 켜짐','끄기');}
+  else setPushRow('off','이 기기에서 알림 받으려면 켜기','켜기');
+}
+async function savePushSub(sub){
+  const j=sub.toJSON();
+  await store.pushCol.doc(deviceId()).set({endpoint:j.endpoint,keys:j.keys,ua:navigator.userAgent.slice(0,120),updatedAt:Date.now()});
+}
+$('pushBtn').onclick=async()=>{
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    const cur=await reg.pushManager.getSubscription();
+    if(cur&&Notification.permission==='granted'){await cur.unsubscribe();await store.pushCol.doc(deviceId()).delete();toast('이 기기 알림을 껐습니다');refreshPushRow();return;}
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted'){toast('알림이 허용되지 않았습니다');refreshPushRow();return;}
+    const sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToU8(window.VAPID_PUBLIC_KEY)});
+    await savePushSub(sub); toast('이 기기 알림을 켰습니다'); refreshPushRow();
+  }catch(e){console.error(e);toast('알림 설정 실패: '+(e.message||e));setPushRow('err','알림 설정 실패: '+(e.message||e));}
+};
+// 앱을 열 때마다 구독이 살아 있으면 서버 기록을 최신으로 (기기 교체·만료 대비)
+async function syncPushSub(){
+  try{ if(!pushSupported()||!(store instanceof FireStore)||Notification.permission!=='granted')return;
+    const reg=await navigator.serviceWorker.ready; const sub=await reg.pushManager.getSubscription(); if(sub)await savePushSub(sub);
+  }catch(e){console.warn('push sync',e);}
+}
+// 알림을 눌러 열렸을 때 그 날짜로
+function gotoDate(s){if(!/^\d{4}-\d{2}-\d{2}$/.test(s))return;selDate=s;const d=parse(s);viewY=d.getFullYear();viewM=d.getMonth();render();}
+{const q=new URLSearchParams(location.search).get('d');if(q){gotoDate(q);history.replaceState(null,'',location.pathname);}}
+if('serviceWorker' in navigator)navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.type==='goto')gotoDate(e.data.date);});
 $('alTimeClear').onclick=()=>{$('alTime').value='';};
 $('fTimeClear').onclick=()=>{$('fTime').value='';};
 $('alCancel').onclick=hide;
@@ -1098,7 +1149,7 @@ async function boot(){
     if(user){
       $('loginView').classList.add('hidden');$('appView').classList.remove('hidden');$('logoutBtn').classList.remove('hidden');
       if(store&&store.unsub){store.unsub();if(store.unsubS)store.unsubS();}
-      store=new FireStore(user);store.init(render);
+      store=new FireStore(user);store.init(render);syncPushSub();
     }else{
       if(store&&store.unsub){store.unsub();if(store.unsubS)store.unsubS();}
       store=null;tasks={};

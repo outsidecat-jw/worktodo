@@ -13,3 +13,7 @@ window.FIREBASE_CONFIG = {
 
 // 로컬 모드로 되돌리려면 위 블록을 지우고 아래 한 줄만 남기면 됩니다.
 // window.FIREBASE_CONFIG = null;
+
+// 푸시 알림 공개 키 (VAPID). 비공개 키는 GitHub Secrets 에만 있고 여기엔 절대 넣지 않음.
+// 이 값은 공개되어도 됩니다.
+window.VAPID_PUBLIC_KEY = "BPF0z2FNr0J5JMJXmk6AWcFqoClzuTlC-qtszQcyjf7cKrAPXPyMNafwRayYf4ZMFsnJYNV5fzz-35HVnfoRGDA";

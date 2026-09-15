@@ -1,0 +1,38 @@
+name: 알림 발송
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"      # 5분마다 (GitHub 사정으로 몇 분 늦을 수 있음)
+  workflow_dispatch:           # Actions 탭에서 "Run workflow" 로 수동 실행
+    inputs:
+      dry_run:
+        description: "1 이면 실제로 보내지 않고 대상만 로그에 표시"
+        default: "0"
+
+concurrency:
+  group: alarm
+  cancel-in-progress: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      TZ: Asia/Seoul
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: 라이브러리 설치
+        run: npm install --no-package-lock --no-audit --no-fund firebase-admin@12 web-push@3
+        working-directory: server
+      - name: 알림 발송
+        run: node send-alarms.js
+        working-directory: server
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || '0' }}
