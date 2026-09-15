@@ -66,7 +66,7 @@ input,select{font:inherit}
 .task .chk svg{width:14px;height:14px;opacity:0;stroke:#fff;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .task.done .chk svg{opacity:1}
 /* 우선순위 색: 미완료=연한 색, 완료=진한 색 */
-.task[data-p=red] .chk{background:#fbe0e1}.task[data-p=blue] .chk{background:#dde9ff}.task[data-p=green] .chk{background:#d9f3e1}
+.task[data-p=red] .chk{background:#f5a3a6}.task[data-p=blue] .chk{background:#a9c4f7}.task[data-p=green] .chk{background:#9fdfb4}
 .task.done[data-p=red] .chk{background:var(--red)}.task.done[data-p=blue] .chk{background:var(--blue)}.task.done[data-p=green] .chk{background:var(--green)}
 .prio{display:flex;gap:14px;align-items:center}
 .prio .pc{width:28px;height:28px;border-radius:50%;position:relative;transition:transform .1s}
@@ -232,7 +232,7 @@ input,select{font:inherit}
     <label>내용</label>
     <input type="text" id="fTitle" placeholder="무엇을 할까요?" maxlength="200">
     <label>우선순위</label>
-    <div class="prio" id="fPrio"><button class="pc" data-p="red"></button><button class="pc on" data-p="blue"></button><button class="pc" data-p="green"></button><span class="pl" id="fPrioLabel">보통</span></div>
+    <div class="prio" id="fPrio"><button class="pc on" data-p="red"></button><button class="pc" data-p="blue"></button><button class="pc" data-p="green"></button><span class="pl" id="fPrioLabel">급함</span></div>
     <label>날짜</label>
     <input type="date" id="fDate">
     <label>반복</label>
@@ -582,7 +582,7 @@ $('mCancel').onclick=hide;
 $('mSave').onclick=()=>{const v=pickDate;if(!v)return;hide();moveInstance(cur,curDate,v);selDate=v;const d=parse(v);viewY=d.getFullYear();viewM=d.getMonth();render();toast('날짜를 옮겼습니다');};
 
 /* 추가/수정 폼 */
-let fRepeatType='none', fWeek=new Set(), fPri='blue';
+let fRepeatType='none', fWeek=new Set(), fPri='red';
 function setPrioUI(p){fPri=p;[...$('fPrio').querySelectorAll('.pc')].forEach(b=>b.classList.toggle('on',b.dataset.p===p));$('fPrioLabel').textContent=PRI_LABEL[p];}
 $('fPrio').onclick=e=>{const b=e.target.closest('.pc');if(b)setPrioUI(b.dataset.p);};
 function setRepeatUI(type,weekdays){
@@ -602,7 +602,7 @@ function openEdit(t,focusRepeat){
   $('esTitle').textContent=t?(focusRepeat?'반복 설정':'일정 수정'):'일정 추가';
   $('fTitle').value=t?t.title:'';
   $('fDate').value=t?t.date:selDate;
-  setPrioUI(t?priOf(t):'blue');
+  setPrioUI(t?priOf(t):'red');
   setRepeatUI(t&&t.repeat?t.repeat.type:'none',t&&t.repeat?t.repeat.weekdays:[]);
   show('editSheet');
   if(!focusRepeat) $('fTitle').focus();
