@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────
 //  알림 발송 스크립트 (GitHub Actions 가 5분마다 깨워 주면 25분 동안 매 1분 확인 → 1분 정확도)
-//  - Firestore 에서 시간·알림이 있는 일정을 읽어 "지금 보낼 때가 된" 알림을 찾고
+//  - Firestore 의 users/{uid}/meta/alarms (앱이 유지하는 "알림 걸린 일정 목록") 을 매 분 읽어 때가 된 알림을 찾고
 //  - 각 기기의 푸시 구독(users/{uid}/push/*) 으로 Web Push 발송
 //  - 보낸 것은 users/{uid}/sent/{key} 에 기록해 두 번 보내지 않음
 //  환경변수: FIREBASE_SERVICE_ACCOUNT(JSON 문자열), VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY,
@@ -63,19 +63,36 @@ function offsetLabel(m) {
 // ── 한 번 깨어나면 LOOP_MIN 분 동안 매 1분 확인 (GitHub 예약이 늦어도 1분 정확도) ──
 const LOOP_MIN = DRY ? 0 : Number(env('LOOP_MIN') || 25);
 const GRACE_MIN = 30;                       // 그래도 늦었으면 30분 안이면 보냄
-let docsNow = [];                           // Firestore 실시간 구독으로 갱신되는 일정 목록
 const sentCache = {};
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+// Firestore 호출이 멈춰도 루프가 안 죽게 20초 제한
+const withTimeout = (p, what) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(what + ' 20초 초과')), 20000))]);
+
+// 알림 걸린 일정 목록: 앱이 users/{uid}/meta/alarms 에 { 일정id: 압축본 } 으로 유지.
+// 매 분 이 문서(사용자당 1개)만 읽으므로 일정이 많아도 읽기 비용이 작음.
+let entriesNow = [];                        // [{ uid, id, t }]
+async function loadEntries() {
+  const snap = await withTimeout(db.collectionGroup('meta').get(), '알림 목록 읽기');
+  const out = [];
+  for (const doc of snap.docs) {
+    if (doc.id !== 'alarms') continue;
+    const uid = doc.ref.parent.parent.id;
+    const m = doc.data() || {};
+    for (const id of Object.keys(m)) out.push({ uid, id, t: m[id] });
+  }
+  entriesNow = out;
+  return out.length;
+}
 
 async function checkOnce() {
   const now = new Date();
   const today = ymd(now);
   let checked = 0, sent = 0;
+  try { await loadEntries(); } catch (e) { console.log(`[${now.toTimeString().slice(0, 8)}] 목록 읽기 실패, 이전 목록으로 진행: ${e.message}`); }
 
-  for (const doc of docsNow) {
-    const t = doc.data();
-    if (t.deleted || t.archived || !t.time || !Array.isArray(t.alarms) || !t.alarms.length) continue;
-    const uid = doc.ref.parent.parent.id;
+  for (const { uid, id, t } of entriesNow) {
+    if (!t || !t.time || !Array.isArray(t.alarms) || !t.alarms.length) continue;
+    const doc = { id };
     checked++;
 
     // 이 일정이 뜨는 날짜들 (반복이면 최근 3일 ~ 앞으로 3일)
@@ -92,10 +109,10 @@ async function checkOnce() {
         if (diffMin < 0 || diffMin > GRACE_MIN) continue;
 
         const key = `${doc.id}_${date}_${m}`;
-        sentCache[uid] = sentCache[uid] || new Set((await db.collection('users').doc(uid).collection('sent').get()).docs.map(d => d.id));
+        sentCache[uid] = sentCache[uid] || new Set((await withTimeout(db.collection('users').doc(uid).collection('sent').get(), '발송기록 읽기')).docs.map(d => d.id));
         if (sentCache[uid].has(key)) continue;
 
-        const subs = (await db.collection('users').doc(uid).collection('push').get()).docs;   // 보낼 때마다 최신 기기 목록
+        const subs = (await withTimeout(db.collection('users').doc(uid).collection('push').get(), '기기목록 읽기')).docs;   // 보낼 때마다 최신 기기 목록
         const body = `${t.time} · ${offsetLabel(m)}${t.note ? ' · ' + t.note : ''}`;
         const payload = JSON.stringify({ title: t.title, body, date, tag: key, priority: t.priority || 'red' });
         console.log(`보냄: [${uid.slice(0, 6)}] ${t.title} @ ${date} ${t.time} (${offsetLabel(m)}) → 기기 ${subs.length}대`);
@@ -124,10 +141,10 @@ async function checkOnce() {
 async function cleanupOld() {
   // 7일 지난 발송 기록 정리 (사용자별로 조회 → 별도 색인 필요 없음)
   const cutoff = admin.firestore.Timestamp.fromMillis(Date.now() - 7 * 86400000);
-  const uids = new Set(docsNow.map(d => d.ref.parent.parent.id));
+  const uids = new Set(entriesNow.map(e => e.uid));
   let cleaned = 0;
   for (const uid of uids) {
-    const old = await db.collection('users').doc(uid).collection('sent').where('at', '<', cutoff).get();
+    const old = await withTimeout(db.collection('users').doc(uid).collection('sent').where('at', '<', cutoff).get(), '발송기록 정리');
     for (const d of old.docs) { await d.ref.delete(); cleaned++; }
   }
   if (cleaned) console.log(`오래된 발송 기록 ${cleaned}건 정리`);
@@ -136,20 +153,15 @@ async function cleanupOld() {
 async function main() {
   const start = Date.now();
   console.log(`[${new Date().toString()}] 시작 (DRY_RUN=${DRY}, ${LOOP_MIN}분 동안 매 1분 확인)`);
-
-  // 일정 목록을 실시간 구독: 처음 한 번만 전체를 읽고, 그 뒤엔 바뀐 것만 (Firestore 무료 한도 절약)
-  await new Promise((resolve, reject) => {
-    let first = true;
-    db.collectionGroup('tasks').onSnapshot(snap => {
-      docsNow = snap.docs;
-      if (first) { first = false; console.log(`일정 ${docsNow.length}건 불러옴`); resolve(); }
-    }, err => { if (first) reject(err); else console.error('구독 오류', err); });
-  });
+  const n = await loadEntries();
+  console.log(`알림 걸린 일정 ${n}건`);
 
   let total = 0, loops = 0;
   while (true) {
-    total += await checkOnce();
+    try { total += await checkOnce(); }
+    catch (e) { console.log(`확인 중 오류(다음 분에 재시도): ${e.message}`); }
     loops++;
+    if (loops % 5 === 0) console.log(`[${new Date().toTimeString().slice(0, 8)}] ${loops}회째 확인, 알림 걸린 일정 ${entriesNow.length}건`);
     const elapsed = (Date.now() - start) / 60000;
     if (elapsed >= LOOP_MIN) break;
     // 다음 정각 분까지 대기 (매 분 :02초쯤 확인)

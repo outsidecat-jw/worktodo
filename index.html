@@ -575,6 +575,24 @@ class FireStore{
     this.col=u.collection('tasks');
     this.sdoc=u.collection('meta').doc('settings');
     this.pushCol=u.collection('push');
+    this.alarmDoc=u.collection('meta').doc('alarms');   // 알림 걸린 일정만 모은 목록 (서버가 매 분 이것만 읽음)
+    this.indexed=false;
+  }
+  // 알림 목록에 넣을 압축본. 알림 대상이 아니면 null
+  alarmEntry(t){
+    if(!t||t.deleted||t.archived||!t.time||!Array.isArray(t.alarms)||!t.alarms.length)return null;
+    return {title:t.title||'',note:t.note||'',date:t.date||'',time:t.time,alarms:t.alarms,repeat:t.repeat||null,
+      done:!!t.done,doneDates:t.doneDates||{},skipDates:t.skipDates||{},priority:t.priority||'red'};
+  }
+  async syncAlarmEntry(id,t,prev){
+    const e=this.alarmEntry(t), had=!!this.alarmEntry(prev);
+    if(e) await this.alarmDoc.set({[id]:e},{merge:true});
+    else if(had) await this.alarmDoc.set({[id]:firebase.firestore.FieldValue.delete()},{merge:true});
+  }
+  // 앱 열 때 한 번: 전체 일정에서 알림 목록을 새로 만듦 (혹시 어긋난 것 자동 복구)
+  async rebuildAlarmIndex(){
+    const m={};for(const t of Object.values(tasks)){const e=this.alarmEntry(t);if(e)m[t.id]=e;}
+    await this.alarmDoc.set(m);
   }
   async init(onChange){
     this.onChange=onChange;
@@ -584,11 +602,12 @@ class FireStore{
       tasks=next;
       setStatus(snap.metadata.fromCache?'off':'on', snap.metadata.fromCache?'오프라인 (연결되면 동기화)':'동기화 됨');
       onChange();
+      if(!snap.metadata.fromCache&&!this.indexed){this.indexed=true;this.rebuildAlarmIndex().catch(e=>console.warn('alarm index',e));}
     },err=>{console.error(err);setStatus('err','동기화 오류: '+err.code);});
     this.unsubS=this.sdoc.onSnapshot(doc=>{if(doc.exists){settings={...settings,...doc.data()};onChange();}});
   }
-  async put(t){tasks[t.id]=t;this.onChange();await this.col.doc(t.id).set(t);}
-  async remove(id){delete tasks[id];this.onChange();await this.col.doc(id).delete();}
+  async put(t){const prev=tasks[t.id];tasks[t.id]=t;this.onChange();await this.col.doc(t.id).set(t);await this.syncAlarmEntry(t.id,t,prev);}
+  async remove(id){const prev=tasks[id];delete tasks[id];this.onChange();await this.col.doc(id).delete();await this.syncAlarmEntry(id,null,prev);}
   async putSettings(s){settings={...settings,...s};this.onChange();await this.sdoc.set(settings,{merge:true});}
 }
 
