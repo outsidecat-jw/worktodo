@@ -988,7 +988,9 @@ $('asAlarm').onclick=()=>{const t=cur;hide();setTimeout(()=>openAlarm(t),150);};
 /* 알림 설정 시트: 일정 시간 + 여러 개 체크 */
 let alSel=new Set();
 function renderAlGrid(){const g=$('alGrid');g.innerHTML='';for(const [m,label] of ALARM_OPTS){const b=document.createElement('button');b.type='button';b.className=alSel.has(m)?'on':'';b.innerHTML=`<span class="bx"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L19 7"/></svg></span>${label}`;b.onclick=()=>{if(alSel.has(m))alSel.delete(m);else alSel.add(m);renderAlGrid();};g.appendChild(b);}}
-function openAlarm(t){cur=t;$('alTitle').textContent=t.title;$('alTime').value=t.time||'';alSel=new Set(alarmsOf(t));renderAlGrid();show('alarmSheet');}
+// 시간이 없으면 지금 시각(10분 단위 올림)을 기본으로 채워 둠
+function nowRounded(){const d=new Date();d.setMinutes(Math.ceil(d.getMinutes()/10)*10,0,0);return pad(d.getHours()%24)+':'+pad(d.getMinutes());}
+function openAlarm(t){cur=t;$('alTitle').textContent=t.title;$('alTime').value=t.time||nowRounded();alSel=new Set(alarmsOf(t));renderAlGrid();show('alarmSheet');}
 $('alTimeClear').onclick=()=>{$('alTime').value='';};
 $('fTimeClear').onclick=()=>{$('fTime').value='';};
 $('alCancel').onclick=hide;
