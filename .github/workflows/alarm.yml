@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
       - name: 라이브러리 설치
         run: npm install --no-package-lock --no-audit --no-fund firebase-admin@12 web-push@3
         working-directory: server

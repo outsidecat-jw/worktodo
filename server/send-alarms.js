@@ -9,12 +9,28 @@
 const admin = require('firebase-admin');
 const webpush = require('web-push');
 
-const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
-if (!sa.project_id) { console.error('FIREBASE_SERVICE_ACCOUNT 비어 있음'); process.exit(1); }
+// ── 비밀값 점검 (틀리면 무엇이 틀렸는지 로그에 정확히 남김) ──
+const env = k => (process.env[k] || '').replace(/^﻿/, '').trim();   // 앞뒤 공백·줄바꿈·BOM 제거
+const problems = [];
+const saRaw = env('FIREBASE_SERVICE_ACCOUNT');
+let sa = {};
+if (!saRaw) problems.push('FIREBASE_SERVICE_ACCOUNT 가 비어 있음 (Secret 이름 확인)');
+else {
+  try { sa = JSON.parse(saRaw); } catch (e) { problems.push(`FIREBASE_SERVICE_ACCOUNT 가 JSON 이 아님: ${e.message} (앞 30자: ${JSON.stringify(saRaw.slice(0, 30))})`); }
+  if (sa && !sa.project_id) problems.push('FIREBASE_SERVICE_ACCOUNT 에 project_id 없음 (파일 내용 전체를 붙여넣었는지 확인)');
+  if (sa && sa.private_key && !sa.private_key.includes('BEGIN PRIVATE KEY')) problems.push('FIREBASE_SERVICE_ACCOUNT 의 private_key 형식 이상');
+}
+const pub = env('VAPID_PUBLIC_KEY'), priv = env('VAPID_PRIVATE_KEY'), subject = env('VAPID_SUBJECT');
+if (pub.length !== 87) problems.push(`VAPID_PUBLIC_KEY 길이 ${pub.length} (87이어야 함, 값이 비었거나 다른 줄이 섞임)`);
+if (priv.length !== 43) problems.push(`VAPID_PRIVATE_KEY 길이 ${priv.length} (43이어야 함)`);
+if (!/^(mailto:|https:\/\/)/.test(subject)) problems.push(`VAPID_SUBJECT 는 mailto:주소 형식이어야 함 (현재: ${JSON.stringify(subject)})`);
+if (problems.length) { console.error('설정 오류:\n - ' + problems.join('\n - ')); process.exit(1); }
+
 admin.initializeApp({ credential: admin.credential.cert(sa) });
 const db = admin.firestore();
-webpush.setVapidDetails(process.env.VAPID_SUBJECT || 'mailto:noreply@example.com', process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
-const DRY = process.env.DRY_RUN === '1';
+try { webpush.setVapidDetails(subject, pub, priv); }
+catch (e) { console.error('VAPID 키 오류: ' + e.message); process.exit(1); }
+const DRY = env('DRY_RUN') === '1';
 
 // ── 날짜 유틸 (앱과 동일 규칙) ──
 const pad = n => String(n).padStart(2, '0');
