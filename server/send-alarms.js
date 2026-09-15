@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────
-//  알림 발송 스크립트 (GitHub Actions 에서 5분마다 실행)
+//  알림 발송 스크립트 (GitHub Actions 가 5분마다 깨워 주면 14분 동안 매 1분 확인 → 1분 정확도)
 //  - Firestore 에서 시간·알림이 있는 일정을 읽어 "지금 보낼 때가 된" 알림을 찾고
 //  - 각 기기의 푸시 구독(users/{uid}/push/*) 으로 Web Push 발송
 //  - 보낸 것은 users/{uid}/sent/{key} 에 기록해 두 번 보내지 않음
@@ -60,17 +60,19 @@ function offsetLabel(m) {
   return `${m / 1440}일 전`;
 }
 
-async function main() {
+// ── 한 번 깨어나면 LOOP_MIN 분 동안 매 1분 확인 (GitHub 예약이 늦어도 1분 정확도) ──
+const LOOP_MIN = DRY ? 0 : Number(env('LOOP_MIN') || 14);
+const GRACE_MIN = 30;                       // 그래도 늦었으면 30분 안이면 보냄
+let docsNow = [];                           // Firestore 실시간 구독으로 갱신되는 일정 목록
+const sentCache = {};
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function checkOnce() {
   const now = new Date();
-  const GRACE_MIN = 30;                       // Actions 가 늦게 돌아도 30분 안이면 보냄
   const today = ymd(now);
-  console.log(`[${now.toString()}] 시작 (DRY_RUN=${DRY})`);
-
-  const snap = await db.collectionGroup('tasks').get();
   let checked = 0, sent = 0;
-  const subsCache = {}, sentCache = {};
 
-  for (const doc of snap.docs) {
+  for (const doc of docsNow) {
     const t = doc.data();
     if (t.deleted || t.archived || !t.time || !Array.isArray(t.alarms) || !t.alarms.length) continue;
     const uid = doc.ref.parent.parent.id;
@@ -93,8 +95,7 @@ async function main() {
         sentCache[uid] = sentCache[uid] || new Set((await db.collection('users').doc(uid).collection('sent').get()).docs.map(d => d.id));
         if (sentCache[uid].has(key)) continue;
 
-        subsCache[uid] = subsCache[uid] || (await db.collection('users').doc(uid).collection('push').get()).docs;
-        const subs = subsCache[uid];
+        const subs = (await db.collection('users').doc(uid).collection('push').get()).docs;   // 보낼 때마다 최신 기기 목록
         const body = `${t.time} · ${offsetLabel(m)}${t.note ? ' · ' + t.note : ''}`;
         const payload = JSON.stringify({ title: t.title, body, date, tag: key, priority: t.priority || 'red' });
         console.log(`보냄: [${uid.slice(0, 6)}] ${t.title} @ ${date} ${t.time} (${offsetLabel(m)}) → 기기 ${subs.length}대`);
@@ -116,17 +117,47 @@ async function main() {
       }
     }
   }
+  if (sent || LOOP_MIN === 0) console.log(`[${now.toTimeString().slice(0, 8)}] 검사 ${checked}건, 발송 ${sent}건`);
+  return sent;
+}
 
+async function cleanupOld() {
   // 7일 지난 발송 기록 정리 (사용자별로 조회 → 별도 색인 필요 없음)
   const cutoff = admin.firestore.Timestamp.fromMillis(Date.now() - 7 * 86400000);
-  const uids = new Set(snap.docs.map(d => d.ref.parent.parent.id));
+  const uids = new Set(docsNow.map(d => d.ref.parent.parent.id));
   let cleaned = 0;
   for (const uid of uids) {
     const old = await db.collection('users').doc(uid).collection('sent').where('at', '<', cutoff).get();
     for (const d of old.docs) { await d.ref.delete(); cleaned++; }
   }
+  if (cleaned) console.log(`오래된 발송 기록 ${cleaned}건 정리`);
+}
 
-  console.log(`검사 ${checked}건, 발송 ${sent}건, 오래된 기록 정리 ${cleaned}건`);
+async function main() {
+  const start = Date.now();
+  console.log(`[${new Date().toString()}] 시작 (DRY_RUN=${DRY}, ${LOOP_MIN}분 동안 매 1분 확인)`);
+
+  // 일정 목록을 실시간 구독: 처음 한 번만 전체를 읽고, 그 뒤엔 바뀐 것만 (Firestore 무료 한도 절약)
+  await new Promise((resolve, reject) => {
+    let first = true;
+    db.collectionGroup('tasks').onSnapshot(snap => {
+      docsNow = snap.docs;
+      if (first) { first = false; console.log(`일정 ${docsNow.length}건 불러옴`); resolve(); }
+    }, err => { if (first) reject(err); else console.error('구독 오류', err); });
+  });
+
+  let total = 0, loops = 0;
+  while (true) {
+    total += await checkOnce();
+    loops++;
+    const elapsed = (Date.now() - start) / 60000;
+    if (elapsed >= LOOP_MIN) break;
+    // 다음 정각 분까지 대기 (매 분 :02초쯤 확인)
+    const now = Date.now();
+    await sleep(60000 - (now % 60000) + 2000);
+  }
+  await cleanupOld();
+  console.log(`끝: ${loops}회 확인, 발송 ${total}건`);
 }
 
 main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });

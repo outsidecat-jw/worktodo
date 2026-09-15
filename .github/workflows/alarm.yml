@@ -2,7 +2,7 @@ name: 알림 발송
 
 on:
   schedule:
-    - cron: "*/5 * * * *"      # 5분마다 (GitHub 사정으로 몇 분 늦을 수 있음)
+    - cron: "*/5 * * * *"      # 5분마다 깨움. 한 번 깨면 14분 동안 매 1분 확인하므로 늦게 깨워도 빈틈 없음
   workflow_dispatch:           # Actions 탭에서 "Run workflow" 로 수동 실행
     inputs:
       dry_run:
@@ -16,7 +16,7 @@ concurrency:
 jobs:
   send:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 17
     env:
       TZ: Asia/Seoul
     steps:
@@ -36,3 +36,4 @@ jobs:
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
           DRY_RUN: ${{ github.event.inputs.dry_run || '0' }}
+          LOOP_MIN: "14"
