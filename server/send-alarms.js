@@ -118,16 +118,19 @@ async function checkOnce() {
         console.log(`보냄: [${uid.slice(0, 6)}] ${t.title} @ ${date} ${t.time} (${offsetLabel(m)}) → 기기 ${subs.length}대`);
 
         if (!DRY) {
+          const results = {};                       // 기기별 결과를 발송 기록에 남김 (로그 없이도 앱에서 진단 가능)
           for (const s of subs) {
             const sub = s.data();
             try {
               await webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, payload, { TTL: 3600, urgency: 'high' });
+              results[s.id] = 'ok';
             } catch (e) {
+              results[s.id] = 'fail ' + (e.statusCode || e.message);
               console.log(`  기기 ${s.id} 실패: ${e.statusCode || e.message}`);
               if (e.statusCode === 404 || e.statusCode === 410) { await s.ref.delete(); console.log('  → 만료된 구독 삭제'); }
             }
           }
-          await db.collection('users').doc(uid).collection('sent').doc(key).set({ at: admin.firestore.FieldValue.serverTimestamp(), title: t.title });
+          await db.collection('users').doc(uid).collection('sent').doc(key).set({ at: admin.firestore.FieldValue.serverTimestamp(), title: t.title, time: t.time, offset: m, devices: results });
         }
         sentCache[uid].add(key);
         sent++;
