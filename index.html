@@ -153,6 +153,7 @@ input,select{font:inherit}
 .status .iconbtn{text-decoration:none}
 .iconbtn .badge{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--red);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center}
 .arch-list{max-height:60vh;overflow:auto;margin:0 -4px}
+#archSheet .arch-list[style*="height"]{max-height:none}
 .arch-list .task{padding:11px 8px}
 .ic.gray{background:#8e8e93}
 .ti{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
@@ -172,7 +173,13 @@ input,select{font:inherit}
   .sheet.show{transform:translate(-50%,-50%);opacity:1}
   .sheet .grab{display:none}
   .task{padding:12px 6px}
+  /* 보관함 창 크기 조절 (PC만): 오른쪽 아래 모서리 */
+  #archSheet{max-height:none;overflow:visible;min-width:360px}
+  #archSheet .rz{display:block}
 }
+.rz{display:none;position:absolute;right:0;bottom:0;width:26px;height:26px;cursor:nwse-resize;touch-action:none}
+.rz::before{content:"";position:absolute;right:7px;bottom:7px;width:10px;height:10px;border-right:2.5px solid #c7c7cc;border-bottom:2.5px solid #c7c7cc;border-radius:0 0 3px 0}
+.rz:hover::before{border-color:var(--sub)}
 </style>
 </head>
 <body>
@@ -317,6 +324,7 @@ input,select{font:inherit}
   <div class="grab"></div>
   <h2>보관함</h2>
   <div class="arch-list" id="archList"></div>
+  <div class="rz" id="archResize" title="끌어서 크기 조절"></div>
   <div class="form">
     <div class="actions">
       <button id="archClose">닫기</button>
@@ -504,7 +512,35 @@ function renderArchBadge(){
   const n=archived().filter(t=>!t.done).length;
   const b=$('archBadge');b.textContent=n;b.classList.toggle('hidden',n===0);
 }
-function openArchive(){renderArchive();show('archSheet');}
+function openArchive(){renderArchive();applyArchSize();show('archSheet');}
+
+/* 보관함 창 크기 (PC): 오른쪽 아래 모서리 끌기, 마지막 크기는 이 기기에 기억 */
+const ARCH_SIZE_KEY='worktodo.archSize';
+const isWide=()=>matchMedia('(min-width:680px)').matches;
+const ARCH_CHROME=150;   // 제목·버튼 등 목록 외 높이
+function setArchSize(w,h){
+  const el=$('archSheet');
+  w=Math.min(innerWidth-40,Math.max(360,w)); h=Math.min(innerHeight-40,Math.max(280,h));
+  el.style.width=w+'px'; $('archList').style.height=(h-ARCH_CHROME)+'px';
+  return {w,h};
+}
+function applyArchSize(){
+  const el=$('archSheet'),ls=$('archList').style; el.style.width='';ls.height='';ls.maxHeight='';
+  if(!isWide())return;
+  let s=null;try{s=JSON.parse(localStorage.getItem(ARCH_SIZE_KEY));}catch(e){}
+  if(s&&s.w&&s.h) setArchSize(s.w,s.h);
+}
+$('archResize').onpointerdown=e=>{
+  e.preventDefault();
+  const hd=e.currentTarget, r=$('archSheet').getBoundingClientRect();
+  const sx=e.clientX, sy=e.clientY, w0=r.width, h0=r.height; let last=null;
+  try{hd.setPointerCapture(e.pointerId);}catch(_){}
+  // 창이 가운데 정렬(translate -50%)이라 폭·높이를 2배로 늘려야 모서리가 포인터를 따라옴
+  hd.onpointermove=ev=>{last=setArchSize(w0+(ev.clientX-sx)*2,h0+(ev.clientY-sy)*2);};
+  hd.onpointerup=hd.onpointercancel=()=>{hd.onpointermove=hd.onpointerup=hd.onpointercancel=null;
+    if(last){try{localStorage.setItem(ARCH_SIZE_KEY,JSON.stringify(last));}catch(_){}}};
+};
+addEventListener('resize',()=>{if($('archSheet').classList.contains('show'))applyArchSize();});
 $('archBtn').onclick=openArchive;
 $('archClose').onclick=hide;
 $('archAdd').onclick=()=>{hide();setTimeout(()=>openEdit(null,false,true),150);};
