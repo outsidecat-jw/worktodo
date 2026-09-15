@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────
-//  알림 발송 스크립트 (GitHub Actions 가 5분마다 깨워 주면 14분 동안 매 1분 확인 → 1분 정확도)
+//  알림 발송 스크립트 (GitHub Actions 가 5분마다 깨워 주면 25분 동안 매 1분 확인 → 1분 정확도)
 //  - Firestore 에서 시간·알림이 있는 일정을 읽어 "지금 보낼 때가 된" 알림을 찾고
 //  - 각 기기의 푸시 구독(users/{uid}/push/*) 으로 Web Push 발송
 //  - 보낸 것은 users/{uid}/sent/{key} 에 기록해 두 번 보내지 않음
@@ -61,7 +61,7 @@ function offsetLabel(m) {
 }
 
 // ── 한 번 깨어나면 LOOP_MIN 분 동안 매 1분 확인 (GitHub 예약이 늦어도 1분 정확도) ──
-const LOOP_MIN = DRY ? 0 : Number(env('LOOP_MIN') || 14);
+const LOOP_MIN = DRY ? 0 : Number(env('LOOP_MIN') || 25);
 const GRACE_MIN = 30;                       // 그래도 늦었으면 30분 안이면 보냄
 let docsNow = [];                           // Firestore 실시간 구독으로 갱신되는 일정 목록
 const sentCache = {};
