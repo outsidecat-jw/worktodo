@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────
-//  알림 발송 스크립트 (GitHub Actions 가 5분마다 깨워 주면 25분 동안 매 1분 확인 → 1분 정확도)
+//  알림 발송 스크립트 (GitHub Actions 가 5분마다 깨워 주면 50분 동안 매 1분 확인하고 끝나면 스스로 다음 실행 예약 → 1분 정확도)
 //  - Firestore 의 users/{uid}/meta/alarms (앱이 유지하는 "알림 걸린 일정 목록") 을 매 분 읽어 때가 된 알림을 찾고
 //  - 각 기기의 푸시 구독(users/{uid}/push/*) 으로 Web Push 발송
 //  - 보낸 것은 users/{uid}/sent/{key} 에 기록해 두 번 보내지 않음
@@ -61,7 +61,7 @@ function offsetLabel(m) {
 }
 
 // ── 한 번 깨어나면 LOOP_MIN 분 동안 매 1분 확인 (GitHub 예약이 늦어도 1분 정확도) ──
-const LOOP_MIN = DRY ? 0 : Number(env('LOOP_MIN') || 25);
+const LOOP_MIN = DRY ? 0 : Number(env('LOOP_MIN') || 50);
 const GRACE_MIN = 30;                       // 그래도 늦었으면 30분 안이면 보냄
 const sentCache = {};
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -108,7 +108,7 @@ async function checkOnce() {
         const diffMin = (now - fireAt) / 60000;
         if (diffMin < 0 || diffMin > GRACE_MIN) continue;
 
-        const key = `${doc.id}_${date}_${m}`;
+        const key = `${doc.id}_${date}_${t.time.replace(":", "")}_${m}`;   // 같은 일정이라도 시간을 바꾸면 새 알림으로 취급
         sentCache[uid] = sentCache[uid] || new Set((await withTimeout(db.collection('users').doc(uid).collection('sent').get(), '발송기록 읽기')).docs.map(d => d.id));
         if (sentCache[uid].has(key)) continue;
 
