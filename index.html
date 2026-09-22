@@ -173,6 +173,13 @@ input,select{font:inherit}
 .sheet{pointer-events:none;visibility:hidden;transition:transform .25s cubic-bezier(.2,.8,.2,1),opacity .2s,visibility 0s .25s}
 .sheet.show{transform:translateY(0);pointer-events:auto;visibility:visible;transition:transform .25s cubic-bezier(.2,.8,.2,1),opacity .2s,visibility 0s}
 .sheet .grab{width:40px;height:4px;border-radius:2px;background:#d9d9de;margin:4px auto 14px}
+/* 추가·수정 창: 위에서 내려옴 (아이폰 키보드가 올라와도 제목 칸이 맨 위에 그대로) */
+.sheet.topsheet{top:0;bottom:auto;border-radius:0 0 22px 22px;padding-top:calc(10px + var(--safeTop));transform:translateY(-105%);max-height:100dvh}
+.sheet.topsheet.show{transform:translateY(0)}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.sheet-head h2{margin:0;flex:1}
+.sheet-head button{font-size:15px;font-weight:600;color:var(--sub);padding:8px 4px;min-width:44px;text-align:left}
+.sheet-head button.primary{color:var(--text);font-weight:800;text-align:right}
 .sheet h2{margin:0 0 16px;font-size:16px;font-weight:800;text-align:center;word-break:break-all}
 .sheet .big{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
 .sheet .big button{background:#f2f2f4;border-radius:14px;padding:16px 0;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:14px;font-weight:600}
@@ -251,6 +258,9 @@ input,select{font:inherit}
   .list{margin-top:0;min-height:440px}
   .sheet{left:50%;right:auto;bottom:auto;top:50%;width:420px;border-radius:22px;transform:translate(-50%,-45%);opacity:0;transition:.2s;padding-bottom:20px}
   .sheet.show{transform:translate(-50%,-50%);opacity:1}
+  .sheet.topsheet{top:50%;bottom:auto;border-radius:22px;padding-top:8px;max-height:90vh;transform:translate(-50%,-45%)}   /* PC에서는 가운데 창 그대로 */
+  .sheet.topsheet.show{transform:translate(-50%,-50%)}
+  .sheet.topsheet .actions{display:none}   /* PC는 위쪽 취소/저장만 */
   .sheet .grab{display:none}
   .task{padding:12px 6px}
   /* 보관함 창 크기 조절 (PC만): 오른쪽 아래 모서리 */
@@ -381,9 +391,12 @@ input,select{font:inherit}
 </div>
 
 <!-- 추가 / 수정 시트 -->
-<div class="sheet" id="editSheet">
-  <div class="grab"></div>
-  <h2 id="esTitle">일정 추가</h2>
+<div class="sheet topsheet" id="editSheet">
+  <div class="sheet-head">
+    <button id="fCancel">취소</button>
+    <h2 id="esTitle">일정 추가</h2>
+    <button id="fSave" class="primary">저장</button>
+  </div>
   <div class="form">
     <label>내용</label>
     <input type="text" id="fTitle" placeholder="무엇을 할까요?" maxlength="200">
@@ -409,8 +422,8 @@ input,select{font:inherit}
     </div>
     </div>
     <div class="actions">
-      <button id="fCancel">취소</button>
-      <button id="fSave" class="primary">저장</button>
+      <button id="fCancel2">취소</button>
+      <button id="fSave2" class="primary">저장</button>
     </div>
   </div>
 </div>
@@ -557,6 +570,7 @@ function instancesOn(date){
 /* ───────────── 저장소: 로컬 ───────────── */
 // 설정(자동 이월 등)은 일정과 같이 동기화됨
 let settings={autoRollover:false};
+let pendingWrites=0;   // 서버에 아직 안 올라간 변경 개수
 class LocalStore{
   constructor(){this.key='worktodo.tasks';this.skey='worktodo.settings';}
   async init(onChange){
@@ -604,7 +618,11 @@ class FireStore{
       const next={};
       snap.forEach(doc=>{next[doc.id]=doc.data();});
       tasks=next;
-      setStatus(snap.metadata.fromCache?'off':'on', snap.metadata.fromCache?'오프라인 (연결되면 동기화)':'동기화 됨');
+      // 아직 서버에 안 올라간 변경이 있으면 "저장 중" 으로 표시 (앱을 닫기 전에 알 수 있게)
+      pendingWrites=snap.docs.filter(d=>d.metadata.hasPendingWrites).length;
+      if(pendingWrites) setStatus('off',`저장 중 ${pendingWrites}건…`);
+      else setStatus(snap.metadata.fromCache?'off':'on', snap.metadata.fromCache?'오프라인 (연결되면 동기화)':'동기화 됨');
+      if(persistState.startsWith('fail')) $('statusText').textContent+=' · 오프라인 저장 안 됨';
       onChange();
       if(!snap.metadata.fromCache&&!this.indexed){this.indexed=true;this.rebuildAlarmIndex().catch(e=>console.warn('alarm index',e));}
     },err=>{console.error(err);setStatus('err','동기화 오류: '+err.code);});
@@ -1134,7 +1152,8 @@ function openEdit(t,focusRepeat,archivedMode){
   if(!focusRepeat) $('fTitle').focus();
 }
 $('addBtn').onclick=()=>openEdit(null);
-$('fCancel').onclick=hide;
+$('fCancel').onclick=hide; $('fCancel2').onclick=hide;
+$('fSave2').onclick=()=>$('fSave').click();
 $('fTitle').onkeydown=e=>{if(e.key==='Enter')$('fSave').click();};
 $('fSave').onclick=()=>{
   const title=$('fTitle').value.trim(), date=$('fDate').value, note=$('fNote').value.trim(), time=$('fTime').value||null;
@@ -1178,6 +1197,22 @@ function toast(msg,undoFn){
 }
 $('toastUndo').onclick=()=>{const f=toastUndoFn;if(!f)return;toastUndoFn=null;f();toast('되돌렸습니다');};
 
+/* ───────────── 기기 진단 기록 (users/{uid}/meta/diag) — 폰에서 무슨 일이 있었는지 PC에서 볼 수 있게 ───────────── */
+let persistState='unknown', diagEvents=[];
+function writeDiag(event,extra){
+  try{
+    if(!(store instanceof FireStore))return;
+    const id=deviceId();
+    diagEvents.push(`${new Date().toISOString().slice(5,19)} ${event}${extra?' '+extra:''}`); if(diagEvents.length>20)diagEvents.shift();
+    firebase.firestore().collection('users').doc(store.user.uid).collection('meta').doc('diag')
+      .set({[id]:{ua:navigator.userAgent.slice(0,80),standalone:!!window.navigator.standalone||matchMedia('(display-mode: standalone)').matches,
+        persist:persistState,online:navigator.onLine,lastEvent:event,at:Date.now(),events:diagEvents.slice()}},{merge:true}).catch(()=>{});
+  }catch(e){}
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')writeDiag('hidden',pendingWrites?'미저장 '+pendingWrites+'건':'');});
+addEventListener('pagehide',()=>writeDiag('pagehide',pendingWrites?'미저장 '+pendingWrites+'건':''));
+addEventListener('online',()=>writeDiag('online'));addEventListener('offline',()=>writeDiag('offline'));
+
 /* ───────────── 시작 ───────────── */
 async function boot(){
   if(!window.FIREBASE_CONFIG){
@@ -1185,13 +1220,15 @@ async function boot(){
     store=new LocalStore();await store.init(render);return;
   }
   firebase.initializeApp(window.FIREBASE_CONFIG);
-  try{await firebase.firestore().enablePersistence({synchronizeTabs:true});}catch(e){console.warn('persistence',e.code);}
+  // 오프라인 저장(앱을 바로 닫아도 나중에 서버로 올라가게). 실패하면 기록해 두고 화면에도 표시
+  try{await firebase.firestore().enablePersistence({synchronizeTabs:true});persistState='ok';}
+  catch(e){persistState='fail:'+(e.code||e.message);console.warn('persistence',e.code);}
   await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
   firebase.auth().onAuthStateChanged(user=>{
     if(user){
       $('loginView').classList.add('hidden');$('appView').classList.remove('hidden');$('logoutBtn').classList.remove('hidden');
       if(store&&store.unsub){store.unsub();if(store.unsubS)store.unsubS();}
-      store=new FireStore(user);store.init(render);syncPushSub();
+      store=new FireStore(user);store.init(render);syncPushSub();writeDiag('start');
     }else{
       if(store&&store.unsub){store.unsub();if(store.unsubS)store.unsubS();}
       store=null;tasks={};
