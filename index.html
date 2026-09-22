@@ -998,7 +998,13 @@ $('cfOk').onclick=()=>{const f=cfFn;cfFn=null;hide();if(f)setTimeout(f,150);};
 let cur=null, curDate=null, openSheet=null;
 function show(id){document.querySelectorAll('.sheet.show').forEach(s=>{if(s.id!==id)s.classList.remove('show');});openSheet=$(id);$('backdrop').classList.add('show');openSheet.classList.add('show');$('toast').classList.remove('show');toastUndoFn=null;}
 function hide(){if(!openSheet)return;openSheet.classList.remove('show');$('backdrop').classList.remove('show');openSheet=null;}
-$('backdrop').onclick=hide;
+// 추가·수정 창에 쓰던 내용이 있으면 바깥을 눌러도 안 닫힘 (실수로 내용 날리는 것 방지)
+$('backdrop').onclick=()=>{
+  if(openSheet&&openSheet.id==='editSheet'&&($('fTitle').value.trim()||$('fNote').value.trim())){
+    toast('쓰던 내용이 있습니다. 위의 저장 또는 취소를 눌러 주세요');return;
+  }
+  hide();
+};
 
 // 메뉴를 보관함에서 열었으면 작업 후 보관함으로 돌아감
 let fromArch=false;
