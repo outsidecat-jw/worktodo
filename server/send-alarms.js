@@ -47,7 +47,8 @@ function occursOn(t, date) {
     case 'daily': return true;
     case 'weekdays': return w >= 1 && w <= 5;
     case 'weekly': return (t.repeat.weekdays || []).includes(w);
-    case 'monthly': return d.getDate() === parse(t.date).getDate();
+    // 매월: 31일처럼 그 달에 없는 날짜면 그 달 마지막 날에
+    case 'monthly': { const want = parse(t.date).getDate(), last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); return d.getDate() === Math.min(want, last); }
   }
   return false;
 }

@@ -95,10 +95,12 @@ input,select{font:inherit}
 .list-head .tools{display:flex;gap:6px;align-items:center}
 .list-head .selbtn{height:32px;padding:0 12px;border-radius:16px;background:#f2f2f4;font-size:13px;font-weight:600}
 .list-head .selbtn.on{background:var(--text);color:#fff}
-.selbar{position:fixed;left:50%;bottom:calc(16px + var(--safeBottom));transform:translateX(-50%);z-index:15;background:#1c1c1e;color:#fff;border-radius:16px;
-  padding:10px 12px;display:none;gap:6px;align-items:center;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:calc(100vw - 24px);flex-wrap:wrap;justify-content:center}
+/* 선택 바: 화면 아래 가로 전체. 일정 줄을 가리지 않도록 목록 아래에 그만큼 빈 자리를 둠(.selmode) */
+.selbar{position:fixed;left:0;right:0;bottom:0;z-index:15;background:#1c1c1e;color:#fff;border-radius:16px 16px 0 0;
+  padding:10px 12px calc(10px + var(--safeBottom));display:none;gap:6px;align-items:center;box-shadow:0 -4px 20px rgba(0,0,0,.25);flex-wrap:wrap;justify-content:center}
 .selbar.show{display:flex}
-.selbar .cnt{font-size:13px;font-weight:700;margin:0 6px}
+body.selmode .app{padding-bottom:180px}
+.selbar .cnt{font-size:13px;font-weight:700;margin:0 4px}
 .selbar button{background:rgba(255,255,255,.12);border-radius:10px;padding:8px 10px;font-size:13px;font-weight:600;white-space:nowrap}
 .selbar button.danger{color:#ff8a8e}
 .selbar .pc{width:22px;height:22px;border-radius:50%;padding:0}
@@ -535,7 +537,8 @@ function occursOn(t,date){
     case 'daily': return true;
     case 'weekdays': return w>=1&&w<=5;
     case 'weekly': return (t.repeat.weekdays||[]).includes(w);
-    case 'monthly': return d.getDate()===parse(t.date).getDate();
+    // 매월: 31일처럼 그 달에 없는 날짜면 그 달 마지막 날에 (2월은 28·29일)
+    case 'monthly': {const want=parse(t.date).getDate(), last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate(); return d.getDate()===Math.min(want,last);}
   }
   return false;
 }
@@ -734,28 +737,33 @@ function rolloverIfNeeded(force){
   const today=todayStr(); if(!force&&rolledFor===today)return; rolledFor=today;
   for(const t of overdueTasks()) store.put({...t,origDate:t.origDate||t.date,date:today,updatedAt:Date.now()});
 }
-async function bulkMove(list,toDate){for(const t of list){await moveInstance(t,t.date,toDate);}}
+// list = [{t,date}] 또는 [일정] 둘 다 받음 (밀린 일정 패널은 일정만 넘김)
+async function bulkMove(list,toDate){for(const x of list){const t=x.t||x, from=x.date||t.date;await moveInstance(t,from,toDate);}}
 function archiveTaskSilent(t){const n={...t,archived:true,repeat:null,done:false,alarms:[],updatedAt:Date.now()};delete n.doneDates;delete n.skipDates;delete n.origDate;store.put(n);}
 
 /* ───────────── 여러 개 선택 ───────────── */
-let selMode=false, selIds=new Set();
+// id → 그 줄이 화면에 보이던 날짜. 반복 일정을 "그 날만" 옮기려면 시작일이 아니라 보이던 날짜가 필요
+let selMode=false, selIds=new Map();
 function setSelMode(on){
   selMode=on; if(!on)selIds.clear();
   $('selBtn').classList.toggle('on',on); $('selBtn').textContent=on?'완료':'선택';
-  $('selbar').classList.toggle('show',on); updateSelbar(); render();
+  $('selbar').classList.toggle('show',on); document.body.classList.toggle('selmode',on);
+  updateSelbar(); render();
 }
-function toggleSelect(id,row){if(selIds.has(id))selIds.delete(id);else selIds.add(id);row.classList.toggle('sel',selIds.has(id));updateSelbar();}
+function toggleSelect(id,row,date){if(selIds.has(id))selIds.delete(id);else selIds.set(id,date||todayStr());row.classList.toggle('sel',selIds.has(id));updateSelbar();}
 function updateSelbar(){$('selCnt').textContent=`${selIds.size}개`;}
-const selectedTasks=()=>[...selIds].map(id=>tasks[id]).filter(Boolean);
+const selectedTasks=()=>[...selIds].map(([id,date])=>({t:tasks[id],date})).filter(x=>x.t);
 $('selBtn').onclick=()=>setSelMode(!selMode);
 $('sbCancel').onclick=()=>setSelMode(false);
 function bulkDo(fn,msg){const list=selectedTasks();if(!list.length){toast('선택된 일정이 없습니다');return;}fn(list);setSelMode(false);if(msg)toast(msg(list.length));}
 $('sbToday').onclick=()=>bulkDo(l=>bulkMove(l,todayStr()),n=>`${n}개를 오늘로 옮겼습니다`);
 $('sbTomorrow').onclick=()=>bulkDo(l=>bulkMove(l,addDays(todayStr(),1)),n=>`${n}개를 내일로 옮겼습니다`);
-$('sbArch').onclick=()=>bulkDo(l=>l.forEach(archiveTaskSilent),n=>`${n}개를 보관함으로 옮겼습니다`);
+$('sbArch').onclick=()=>bulkDo(l=>l.forEach(({t})=>archiveTaskSilent(t)),n=>`${n}개를 보관함으로 옮겼습니다`);
 $('sbDelete').onclick=()=>{const list=selectedTasks();if(!list.length){toast('선택된 일정이 없습니다');return;}
-  askConfirm(`${list.length}개를 삭제할까요? (휴지통으로 이동)`,'삭제',true,()=>{list.forEach(t=>{const n={...t,deleted:true,deletedAt:Date.now(),updatedAt:Date.now()};store.put(n);});setSelMode(false);toast(`${list.length}개를 휴지통으로 옮겼습니다`);});};
-$('selbar').querySelectorAll('.pc').forEach(b=>b.onclick=()=>bulkDo(l=>l.forEach(t=>store.put({...t,priority:b.dataset.p,updatedAt:Date.now()})),n=>`${n}개를 ${PRI_LABEL[b.dataset.p]}으로 바꿨습니다`));
+  const reps=list.filter(({t})=>isRepeat(t)).length;
+  askConfirm(`${list.length}개를 삭제할까요? (휴지통으로 이동)${reps?`\n반복 일정 ${reps}개는 전체가 삭제됩니다`:''}`,'삭제',true,
+    ()=>{list.forEach(({t})=>{const n={...t,deleted:true,deletedAt:Date.now(),updatedAt:Date.now()};store.put(n);});setSelMode(false);toast(`${list.length}개를 휴지통으로 옮겼습니다`);});};
+$('selbar').querySelectorAll('.pc').forEach(b=>b.onclick=()=>bulkDo(l=>l.forEach(({t})=>store.put({...t,priority:b.dataset.p,updatedAt:Date.now()})),n=>`${n}개를 ${PRI_LABEL[b.dataset.p]}으로 바꿨습니다`));
 let bulkPick=false;
 $('sbMove').onclick=()=>{if(!selIds.size){toast('선택된 일정이 없습니다');return;}bulkPick=true;openPick(selDate);};
 
@@ -801,8 +809,8 @@ function makeRow(t,date){
   if(t.note){const n=row.querySelector('.nt');n.textContent=t.note;n.classList.remove('hidden');}
   // 자동 이월된 일정: 원래 날짜 표시
   if(t.origDate&&t.origDate!==t.date&&!isRepeat(t)){const s=row.querySelector('.since');const d=parse(t.origDate);s.textContent=`${d.getMonth()+1}/${d.getDate()}부터`;s.classList.remove('hidden');}
-  row.querySelector('.chk').onclick=()=>{if(selMode)toggleSelect(t.id,row);else toggleDone(t,date);};
-  row.querySelector('.title').onclick=()=>{if(selMode)toggleSelect(t.id,row);else openActions(t,date);};
+  row.querySelector('.chk').onclick=()=>{if(selMode)toggleSelect(t.id,row,date);else toggleDone(t,date);};
+  row.querySelector('.title').onclick=()=>{if(selMode)toggleSelect(t.id,row,date);else openActions(t,date);};
   row.querySelector('.grip').onpointerdown=e=>{if(!selMode)startDrag(e,row);};
   if(selMode&&selIds.has(t.id))row.classList.add('sel');
   return row;
@@ -931,9 +939,11 @@ async function moveInstance(t,fromDate,toDate){
   if(toDate===fromDate) return;
   if(isRepeat(t)){
     // 반복 일정: 이 날만 빼고, 새 날짜에 단일 일정으로 복사
+    const already=occursOn(t,toDate);   // 옮길 날에 이미 반복이 걸려 있으면 복사하지 않음 (중복 방지)
     const n={...t,skipDates:{...(t.skipDates||{}),[fromDate]:true},updatedAt:Date.now()};
+    if(already&&n.skipDates[toDate])delete n.skipDates[toDate];   // 그 날을 뺀 적 있으면 되살림
     await store.put(n);
-    await store.put({id:uid(),title:t.title,note:t.note||'',date:toDate,time:t.time||null,alarms:alarmsOf(t),done:false,repeat:null,priority:priOf(t),createdAt:Date.now(),updatedAt:Date.now()});
+    if(!already) await store.put({id:uid(),title:t.title,note:t.note||'',date:toDate,time:t.time||null,alarms:alarmsOf(t),done:false,repeat:null,priority:priOf(t),createdAt:Date.now(),updatedAt:Date.now()});
   }else{
     const n={...t,date:toDate,done:false,updatedAt:Date.now()};delete n.origDate;   // 직접 옮기면 "n/n부터" 표시 해제
     await store.put(n);
