@@ -1,10 +1,11 @@
 name: 알림 발송
 
 # 동작: 실행 하나가 50분 동안 매 1분 확인하고, 끝날 때 스스로 다음 실행을 예약해서 이어 달림.
-# 5분 예약(cron)은 GitHub 가 늦게/안 깨워 줘도 되도록, 혹시 이어 달리기가 끊겼을 때 다시 살리는 보험.
+# 15분 예약(cron)은 이어 달리기가 끊겼을 때 다시 살리는 보험.
+# 실행 환경은 ubuntu-24.04 로 고정 (2026-10-19 에 "최신"이 우분투 26 으로 바뀌어도 안 깨지게).
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "*/15 * * * *"
   workflow_dispatch:           # Actions 탭에서 "Run workflow" 로 수동 실행
     inputs:
       dry_run:
@@ -21,11 +22,13 @@ concurrency:
 
 jobs:
   send:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 55
     env:
       TZ: Asia/Seoul
     steps:
+      - name: 시작 시각 기록
+        run: echo "START_TS=$(date +%s)" >> $GITHUB_ENV
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -43,8 +46,19 @@ jobs:
           VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
           DRY_RUN: ${{ github.event.inputs.dry_run || '0' }}
           LOOP_MIN: "50"
+      # 실패해도 다음 실행을 예약해 이어 달리기가 끊기지 않게 함.
+      # 다만 설정 오류 등으로 "바로" 죽은 경우에는 예약하지 않음 (무한 실패 반복 방지 → 15분 예약에 맡김).
       - name: 다음 실행 예약 (이어 달리기)
-        if: success() && github.event.inputs.dry_run != '1'
+        if: ${{ !cancelled() && github.event.inputs.dry_run != '1' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run alarm.yml --ref main -f dry_run=0
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          elapsed=$(( $(date +%s) - START_TS ))
+          echo "실행 결과=$JOB_STATUS, 걸린 시간=${elapsed}초"
+          if [ "$JOB_STATUS" != "success" ] && [ "$elapsed" -lt 180 ]; then
+            echo "3분 안에 실패 → 설정 문제일 수 있으므로 예약하지 않음 (15분 예약이 되살림)"
+            exit 0
+          fi
+          gh workflow run alarm.yml --ref main -f dry_run=0
+          echo "다음 실행 예약함"

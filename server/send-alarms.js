@@ -63,7 +63,7 @@ function offsetLabel(m) {
 
 // ── 한 번 깨어나면 LOOP_MIN 분 동안 매 1분 확인 (GitHub 예약이 늦어도 1분 정확도) ──
 const LOOP_MIN = DRY ? 0 : Number(env('LOOP_MIN') || 50);
-const GRACE_MIN = 30;                       // 그래도 늦었으면 30분 안이면 보냄
+const GRACE_MIN = 45;                       // 늦게 돌아도 45분 안이면 보냄 (15분 예약으로 되살아날 때까지 덮어 주려고 30→45)
 const sentCache = {};
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 // Firestore 호출이 멈춰도 루프가 안 죽게 20초 제한
@@ -72,16 +72,18 @@ const withTimeout = (p, what) => Promise.race([p, new Promise((_, rej) => setTim
 // 알림 걸린 일정 목록: 앱이 users/{uid}/meta/alarms 에 { 일정id: 압축본 } 으로 유지.
 // 매 분 이 문서(사용자당 1개)만 읽으므로 일정이 많아도 읽기 비용이 작음.
 let entriesNow = [];                        // [{ uid, id, t }]
+let allUids = new Set();                    // 알림이 하나도 없어도 생존신호는 남겨야 하므로 따로 모음
 async function loadEntries() {
   const snap = await withTimeout(db.collectionGroup('meta').get(), '알림 목록 읽기');
-  const out = [];
+  const out = [], uids = new Set();
   for (const doc of snap.docs) {
-    if (doc.id !== 'alarms') continue;
     const uid = doc.ref.parent.parent.id;
+    uids.add(uid);
+    if (doc.id !== 'alarms') continue;
     const m = doc.data() || {};
     for (const id of Object.keys(m)) out.push({ uid, id, t: m[id] });
   }
-  entriesNow = out;
+  entriesNow = out; allUids = uids;
   return out.length;
 }
 
@@ -145,7 +147,7 @@ async function checkOnce() {
 async function cleanupOld() {
   // 7일 지난 발송 기록 정리 (사용자별로 조회 → 별도 색인 필요 없음)
   const cutoff = admin.firestore.Timestamp.fromMillis(Date.now() - 7 * 86400000);
-  const uids = new Set(entriesNow.map(e => e.uid));
+  const uids = allUids;   // 알림을 다 지운 사용자의 오래된 기록도 정리되도록
   let cleaned = 0;
   for (const uid of uids) {
     const old = await withTimeout(db.collection('users').doc(uid).collection('sent').where('at', '<', cutoff).get(), '발송기록 정리');
@@ -154,18 +156,28 @@ async function cleanupOld() {
   if (cleaned) console.log(`오래된 발송 기록 ${cleaned}건 정리`);
 }
 
+// 살아 있다는 신호를 사용자별로 남김 → 앱이 "알림 서버 N분 전 동작" 으로 보여 줌.
+// 서버가 죽으면 앱에서 바로 알 수 있게 (예전에는 GitHub 메일을 봐야 알았음).
+async function writeHealth() {
+  for (const uid of allUids) {
+    try { await withTimeout(db.collection('users').doc(uid).collection('meta').doc('health')
+      .set({ at: Date.now(), run: process.env.GITHUB_RUN_NUMBER || '', loopMin: LOOP_MIN }), '생존신호'); } catch (e) {}
+  }
+}
+
 async function main() {
   const start = Date.now();
   console.log(`[${new Date().toString()}] 시작 (DRY_RUN=${DRY}, ${LOOP_MIN}분 동안 매 1분 확인)`);
   const n = await loadEntries();
   console.log(`알림 걸린 일정 ${n}건`);
+  if (!DRY) await writeHealth();
 
   let total = 0, loops = 0;
   while (true) {
     try { total += await checkOnce(); }
     catch (e) { console.log(`확인 중 오류(다음 분에 재시도): ${e.message}`); }
     loops++;
-    if (loops % 5 === 0) console.log(`[${new Date().toTimeString().slice(0, 8)}] ${loops}회째 확인, 알림 걸린 일정 ${entriesNow.length}건`);
+    if (loops % 5 === 0) { console.log(`[${new Date().toTimeString().slice(0, 8)}] ${loops}회째 확인, 알림 걸린 일정 ${entriesNow.length}건`); if (!DRY) await writeHealth(); }
     const elapsed = (Date.now() - start) / 60000;
     if (elapsed >= LOOP_MIN) break;
     // 다음 정각 분까지 대기 (매 분 :02초쯤 확인)
