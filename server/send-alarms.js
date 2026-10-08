@@ -144,16 +144,23 @@ async function checkOnce() {
   return sent;
 }
 
+// 7일 지난 발송 기록 정리. 한 번에 최대 MAX_CLEAN 건만 하고 나머지는 다음 실행이 이어서 지움.
+// (한 건씩 지우다 20초를 넘겨 실행 전체가 실패하던 것 → 일괄 삭제 + 건수 제한)
+const MAX_CLEAN = 200;
 async function cleanupOld() {
-  // 7일 지난 발송 기록 정리 (사용자별로 조회 → 별도 색인 필요 없음)
   const cutoff = admin.firestore.Timestamp.fromMillis(Date.now() - 7 * 86400000);
-  const uids = allUids;   // 알림을 다 지운 사용자의 오래된 기록도 정리되도록
   let cleaned = 0;
-  for (const uid of uids) {
-    const old = await withTimeout(db.collection('users').doc(uid).collection('sent').where('at', '<', cutoff).get(), '발송기록 정리');
-    for (const d of old.docs) { await d.ref.delete(); cleaned++; }
+  for (const uid of allUids) {                       // 알림을 다 지운 사용자의 기록도 정리되도록
+    if (cleaned >= MAX_CLEAN) break;
+    const old = await withTimeout(db.collection('users').doc(uid).collection('sent')
+      .where('at', '<', cutoff).limit(MAX_CLEAN - cleaned).get(), '발송기록 조회');
+    if (old.empty) continue;
+    const batch = db.batch();                        // 500건까지 한 번에 지울 수 있음
+    old.docs.forEach(d => batch.delete(d.ref));
+    await withTimeout(batch.commit(), '발송기록 삭제');
+    cleaned += old.size;
   }
-  if (cleaned) console.log(`오래된 발송 기록 ${cleaned}건 정리`);
+  if (cleaned) console.log(`오래된 발송 기록 ${cleaned}건 정리${cleaned >= MAX_CLEAN ? ' (나머지는 다음 실행에서)' : ''}`);
 }
 
 // 살아 있다는 신호를 사용자별로 남김 → 앱이 "알림 서버 N분 전 동작" 으로 보여 줌.
@@ -184,7 +191,9 @@ async function main() {
     const now = Date.now();
     await sleep(60000 - (now % 60000) + 2000);
   }
-  await cleanupOld();
+  // 알림은 이미 다 보낸 뒤라, 정리가 실패해도 실행 전체를 실패로 만들지 않음 (실패 메일 방지)
+  try { await cleanupOld(); }
+  catch (e) { console.log(`발송 기록 정리 실패 — 알림 발송에는 영향 없음: ${e.message}`); }
   console.log(`끝: ${loops}회 확인, 발송 ${total}건`);
 }
 
