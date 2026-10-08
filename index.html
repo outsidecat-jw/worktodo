@@ -566,6 +566,12 @@ const sortRows=(list,date)=>list.sort((a,b)=>(isDone(a,date)-isDone(b,date))||(P
 const ALARM_OPTS=[[0,'정각'],[5,'5분 전'],[10,'10분 전'],[15,'15분 전'],[30,'30분 전'],[60,'1시간 전'],[120,'2시간 전'],[180,'3시간 전'],[360,'6시간 전'],[720,'12시간 전'],[1440,'1일 전'],[2880,'2일 전']];
 const alarmsOf=t=>Array.isArray(t.alarms)?t.alarms:[];
 const archived=()=>sortRows(Object.values(tasks).filter(t=>!t.deleted&&t.archived),null);
+// 새로 추가하는 일정을 그 색의 맨 위에 두기 위한 순서값 (기존 것보다 작게)
+function topOrder(date,priority){
+  const list=date?Object.values(tasks).filter(t=>!t.deleted&&!t.archived&&occursOn(t,date)):archived();
+  const nums=list.filter(t=>priOf(t)===priority).map(t=>t.order).filter(v=>typeof v==='number');
+  return (nums.length?Math.min(...nums):0)-10;
+}
 const trashed=()=>Object.values(tasks).filter(t=>t.deleted).sort((a,b)=>(b.deletedAt||0)-(a.deletedAt||0));
 function instancesOn(date){
   return sortRows(live().filter(t=>occursOn(t,date)),date);
@@ -1192,7 +1198,7 @@ $('fSave').onclick=()=>{
     // 보관함 항목: 날짜·반복 없이 제목·색만
     const now=Date.now();
     if(cur) store.put({...cur,title,note,priority:fPri,updatedAt:now});
-    else store.put({id:uid(),title,note,date:todayStr(),done:false,repeat:null,priority:fPri,archived:true,createdAt:now,updatedAt:now});
+    else store.put({id:uid(),title,note,date:todayStr(),done:false,repeat:null,priority:fPri,archived:true,order:topOrder(null,fPri),createdAt:now,updatedAt:now});
     hide();setTimeout(openArchive,150);return;
   }
   if(!date){$('fDate').focus();return;}
@@ -1205,7 +1211,7 @@ $('fSave').onclick=()=>{
     if(!repeat){delete n.doneDates;delete n.skipDates;n.done=!!cur.done;}
     store.put(n);
   }else{
-    store.put({id:uid(),title,note,date,time,alarms:[],done:false,repeat,priority:fPri,createdAt:now,updatedAt:now});
+    store.put({id:uid(),title,note,date,time,alarms:[],done:false,repeat,priority:fPri,order:topOrder(date,fPri),createdAt:now,updatedAt:now});
   }
   hide();
   render();
