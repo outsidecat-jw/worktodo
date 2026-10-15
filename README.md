@@ -77,7 +77,7 @@ GitHub Pages는 10분 캐시 헤더를 보내서, Push 직후 껐다 켜면 옛 
 | `FIREBASE_SERVICE_ACCOUNT` | A-3 에서 복사한 JSON 전체 |
 | `VAPID_PUBLIC_KEY` | `Desktop\worktodo_secrets\vapid_keys.txt` 의 PUBLIC 값 |
 | `VAPID_PRIVATE_KEY` | 같은 파일의 PRIVATE 값 |
-| `VAPID_SUBJECT` | `mailto:본인이메일` (예: `mailto:outsidecat@naver.com`) |
+| `VAPID_SUBJECT` | `mailto:본인이메일` (예: `mailto:myname@example.com`) |
 
 ### C. 자동 실행 켜기
 1. 저장소 위쪽 **Actions** 탭 → "I understand my workflows, go ahead and enable them" 버튼이 있으면 클릭
