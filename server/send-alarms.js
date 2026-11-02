@@ -49,6 +49,11 @@ function occursOn(t, date) {
     case 'weekly': return (t.repeat.weekdays || []).includes(w);
     // 매월: 31일처럼 그 달에 없는 날짜면 그 달 마지막 날에
     case 'monthly': { const want = parse(t.date).getDate(), last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); return d.getDate() === Math.min(want, last); }
+    // 매년: 같은 월·일에. 2월 29일처럼 그 해에 없으면 그 달 마지막 날에
+    case 'yearly': {
+      const b = parse(t.date); if (d.getMonth() !== b.getMonth()) return false;
+      const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); return d.getDate() === Math.min(b.getDate(), last);
+    }
   }
   return false;
 }
@@ -117,7 +122,7 @@ async function checkOnce() {
 
         const subs = (await withTimeout(db.collection('users').doc(uid).collection('push').get(), '기기목록 읽기')).docs;   // 보낼 때마다 최신 기기 목록
         const body = `${t.time} · ${offsetLabel(m)}${t.note ? ' · ' + t.note : ''}`;
-        const payload = JSON.stringify({ title: t.title, body, date, tag: key, priority: t.priority || 'red' });
+        const payload = JSON.stringify({ title: t.title, body, date, tag: key, priority: t.priority || 'red', space: t.space === 'home' ? 'home' : 'work' });
         console.log(`보냄: [${uid.slice(0, 6)}] ${t.title} @ ${date} ${t.time} (${offsetLabel(m)}) → 기기 ${subs.length}대`);
 
         if (!DRY) {

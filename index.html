@@ -12,6 +12,23 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
+<script>
+/* 회사 / 개인 두 공간. 주소에 ?s=home 이면 개인 일정으로 열림.
+   아이폰·PC 는 "홈 화면에 추가" 하는 순간의 제목·아이콘·manifest 를 그대로 쓰므로,
+   화면을 그리기 전인 여기서 먼저 바꿔 둬야 아이콘을 회사용·개인용 2개로 따로 만들 수 있다. */
+(function(){
+  var q=new URLSearchParams(location.search).get('s'), s=q;
+  if(s!=='home'&&s!=='work'){try{s=localStorage.getItem('worktodo.space');}catch(e){s=null;}}
+  window.__SPACE=(s==='home')?'home':'work';
+  if(window.__SPACE==='home'){
+    document.title='개인 일정';
+    document.querySelector('meta[name=apple-mobile-web-app-title]').content='개인 일정';
+    document.querySelector('link[rel=manifest]').href='manifest-home.json';
+    document.querySelector('link[rel=apple-touch-icon]').href='icon-home-180.png';
+    document.querySelector('link[rel=icon]').href='icon-home-192.png';
+  }
+})();
+</script>
 <style>
 :root{
   --bg:#f7f7f8; --card:#fff; --text:#1c1c1e; --sub:#8e8e93; --line:#ececee;
@@ -28,7 +45,15 @@ input,select{font:inherit}
 .app{max-width:520px;margin:0 auto;padding:calc(12px + var(--safeTop)) 16px calc(24px + var(--safeBottom))}
 .top{display:flex;align-items:center;justify-content:space-between;height:44px;margin-bottom:6px}
 .top h1{font-size:20px;font-weight:800;margin:0;letter-spacing:-.3px}
-.status{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--sub)}
+/* 회사 / 개인 전환 (제목 자리) */
+.sp{display:flex;gap:2px;background:#e9e9ec;border-radius:14px;padding:3px;flex:none}
+.sp button{padding:5px 12px;border-radius:11px;font-size:14px;font-weight:700;color:var(--chipText);white-space:nowrap}
+.sp button.on{background:#fff;color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+body[data-space=home] .sp button.on{color:#6d28d9}
+body[data-space=home] .cal-head .month::before{background:#6d28d9}
+.status{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--sub);min-width:0}
+/* 좁은 폰 화면에서 상태 글자가 두 줄로 내려가지 않게 (넘치면 … 으로) */
+.status #statusText{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .status .dot{width:8px;height:8px;border-radius:50%;background:#c7c7cc}
 .status.on .dot{background:#34c759}.status.off .dot{background:#ff9f0a}.status.err .dot{background:var(--red)}
 .status button{color:var(--sub);text-decoration:underline}
@@ -277,7 +302,7 @@ body.selmode .app{padding-bottom:180px}
 <body>
 
 <div id="loginView" class="login hidden">
-  <h1>회사 일정</h1>
+  <h1 id="loginTitle">회사 일정</h1>
   <p>로그인하면 기기 간 동기화됩니다.</p>
   <input id="email" type="email" placeholder="이메일" autocomplete="username">
   <input id="pw" type="password" placeholder="비밀번호" autocomplete="current-password">
@@ -287,7 +312,7 @@ body.selmode .app{padding-bottom:180px}
 
 <div id="appView" class="app hidden">
   <div class="top">
-    <h1>회사 일정</h1>
+    <div class="sp" id="spTab"><button type="button" data-s="work">회사</button><button type="button" data-s="home">개인</button></div>
     <div id="status" class="status">
       <button class="iconbtn" id="searchBtn" title="검색" style="margin-right:6px"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button>
       <button class="iconbtn arch" id="archBtn" title="보관함" style="margin-right:6px"><svg viewBox="0 0 24 24"><path d="M3 4h18v4H3z"/><path d="M5 8v12h14V8"/><path d="M10 12h4"/></svg><span class="badge hidden" id="archBadge"></span></button>
@@ -419,6 +444,7 @@ body.selmode .app{padding-bottom:180px}
       <button data-v="weekdays">평일</button>
       <button data-v="weekly">매주</button>
       <button data-v="monthly">매월</button>
+      <button data-v="yearly">매년</button>
     </div>
     <div class="wd hidden" id="fWeekdays">
       <button data-d="0">일</button><button data-d="1">월</button><button data-d="2">화</button><button data-d="3">수</button><button data-d="4">목</button><button data-d="5">금</button><button data-d="6">토</button>
@@ -519,6 +545,12 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 
 /* ───────────── 상태 ───────────── */
 let tasks={};            // id -> task
+// 회사 / 개인 공간. 일정마다 space 를 달고, 화면에는 지금 공간의 것만 보여 준다.
+// (space 가 없는 옛 일정은 전부 회사 일정으로 본다)
+const SPACE_LABEL={work:'회사 일정',home:'개인 일정'};
+let space=window.__SPACE==='home'?'home':'work';
+const spaceOf=t=>t.space==='home'?'home':'work';
+const inSpace=t=>spaceOf(t)===space;
 let selDate=todayStr();
 let viewY, viewM;        // 보고 있는 달
 {const t=new Date();viewY=t.getFullYear();viewM=t.getMonth();}
@@ -540,6 +572,9 @@ function occursOn(t,date){
     case 'weekly': return (t.repeat.weekdays||[]).includes(w);
     // 매월: 31일처럼 그 달에 없는 날짜면 그 달 마지막 날에 (2월은 28·29일)
     case 'monthly': {const want=parse(t.date).getDate(), last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate(); return d.getDate()===Math.min(want,last);}
+    // 매년: 같은 월·일에. 2월 29일처럼 그 해에 없는 날짜면 그 달 마지막 날에 (평년은 2월 28일)
+    case 'yearly': {const b=parse(t.date); if(d.getMonth()!==b.getMonth())return false;
+      const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate(); return d.getDate()===Math.min(b.getDate(),last);}
   }
   return false;
 }
@@ -552,6 +587,7 @@ function repeatLabel(t){
   if(r.type==='weekdays') return '평일';
   if(r.type==='weekly') return '매주 '+(r.weekdays||[]).slice().sort().map(d=>WD[d]).join('');
   if(r.type==='monthly') return '매월 '+parse(t.date).getDate()+'일';
+  if(r.type==='yearly'){const b=parse(t.date);return `매년 ${b.getMonth()+1}월 ${b.getDate()}일`;}
   return '';
 }
 /* 우선순위: red(급함) > blue(보통, 기본) > green(여유) */
@@ -559,20 +595,20 @@ const PRI=['red','blue','green'], PRI_LABEL={red:'급함',blue:'보통',green:'�
 const priOf=t=>PRI.includes(t.priority)?t.priority:'blue';
 // 수동 순서. 정한 적 없으면 맨 아래(새 일정은 아래에 붙음)
 const ord=t=>typeof t.order==='number'?t.order:Number.MAX_SAFE_INTEGER;
-const live=()=>Object.values(tasks).filter(t=>!t.deleted&&!t.archived);      // 휴지통·보관함 제외 (달력용)
+const live=()=>Object.values(tasks).filter(t=>!t.deleted&&!t.archived&&inSpace(t));   // 휴지통·보관함 제외, 지금 공간만 (달력용)
 // 정렬: 완료 아래 → 색(빨강>파랑>초록) → 시간 있는 게 위(시간순) → 수동 순서 → 만든 순
 const tkey=t=>t.time?t.time:'~';   // '~' 는 모든 시각 문자열보다 뒤
 const sortRows=(list,date)=>list.sort((a,b)=>(isDone(a,date)-isDone(b,date))||(PRI.indexOf(priOf(a))-PRI.indexOf(priOf(b)))||(tkey(a)<tkey(b)?-1:tkey(a)>tkey(b)?1:0)||(ord(a)-ord(b))||((a.createdAt||0)-(b.createdAt||0)));
 const ALARM_OPTS=[[0,'정각'],[5,'5분 전'],[10,'10분 전'],[15,'15분 전'],[30,'30분 전'],[60,'1시간 전'],[120,'2시간 전'],[180,'3시간 전'],[360,'6시간 전'],[720,'12시간 전'],[1440,'1일 전'],[2880,'2일 전']];
 const alarmsOf=t=>Array.isArray(t.alarms)?t.alarms:[];
-const archived=()=>sortRows(Object.values(tasks).filter(t=>!t.deleted&&t.archived),null);
+const archived=()=>sortRows(Object.values(tasks).filter(t=>!t.deleted&&t.archived&&inSpace(t)),null);
 // 새로 추가하는 일정을 그 색의 맨 위에 두기 위한 순서값 (기존 것보다 작게)
 function topOrder(date,priority){
-  const list=date?Object.values(tasks).filter(t=>!t.deleted&&!t.archived&&occursOn(t,date)):archived();
+  const list=date?live().filter(t=>occursOn(t,date)):archived();
   const nums=list.filter(t=>priOf(t)===priority).map(t=>t.order).filter(v=>typeof v==='number');
   return (nums.length?Math.min(...nums):0)-10;
 }
-const trashed=()=>Object.values(tasks).filter(t=>t.deleted).sort((a,b)=>(b.deletedAt||0)-(a.deletedAt||0));
+const trashed=()=>Object.values(tasks).filter(t=>t.deleted&&inSpace(t)).sort((a,b)=>(b.deletedAt||0)-(a.deletedAt||0));
 function instancesOn(date){
   return sortRows(live().filter(t=>occursOn(t,date)),date);
 }
@@ -610,7 +646,7 @@ class FireStore{
   alarmEntry(t){
     if(!t||t.deleted||t.archived||!t.time||!Array.isArray(t.alarms)||!t.alarms.length)return null;
     return {title:t.title||'',note:t.note||'',date:t.date||'',time:t.time,alarms:t.alarms,repeat:t.repeat||null,
-      done:!!t.done,doneDates:t.doneDates||{},skipDates:t.skipDates||{},priority:t.priority||'red'};
+      done:!!t.done,doneDates:t.doneDates||{},skipDates:t.skipDates||{},priority:t.priority||'red',space:spaceOf(t)};
   }
   async syncAlarmEntry(id,t,prev){
     const e=this.alarmEntry(t), had=!!this.alarmEntry(prev);
@@ -651,6 +687,24 @@ function render(){
   if(drag){renderPending=true;return;}   // 끄는 중엔 미룸 (endDrag 에서 처리)
   renderCalendar();renderList();renderArchBadge();if($('archSheet').classList.contains('show'))renderArchive();if($('searchSheet').classList.contains('show'))renderSearch();purgeOld();rolloverIfNeeded();
 }
+
+/* 회사 ↔ 개인 전환. 고른 공간은 이 기기에 기억하고, 제목·아이콘도 같이 바꾼다 */
+function setSpace(s,quiet){
+  space=(s==='home')?'home':'work';
+  try{localStorage.setItem('worktodo.space',space);}catch(e){}
+  document.body.dataset.space=space;
+  [...$('spTab').children].forEach(b=>b.classList.toggle('on',b.dataset.s===space));
+  document.title=SPACE_LABEL[space];
+  $('loginTitle').textContent=SPACE_LABEL[space];
+  document.querySelector('meta[name=apple-mobile-web-app-title]').content=SPACE_LABEL[space];
+  document.querySelector('link[rel=manifest]').href=space==='home'?'manifest-home.json':'manifest.json';
+  document.querySelector('link[rel=apple-touch-icon]').href=space==='home'?'icon-home-180.png':'icon-180.png';
+  document.querySelector('link[rel=icon]').href=space==='home'?'icon-home-192.png':'icon-192.png';
+  odOpen=false;
+  if(selMode){setSelMode(false);return;}   // setSelMode 가 다시 그림
+  if(!quiet)render();
+}
+$('spTab').onclick=e=>{const b=e.target.closest('button');if(b&&b.dataset.s!==space)setSpace(b.dataset.s);};
 
 // 월간/주간 보기 (이 기기에 기억)
 let viewMode='month';try{viewMode=localStorage.getItem('worktodo.viewMode')==='week'?'week':'month';}catch(e){}
@@ -782,7 +836,7 @@ function renderSearch(){
   const q=$('searchIn').value.trim().toLowerCase();
   const box=$('searchList');box.innerHTML='';
   if(!q){box.innerHTML='<div class="nolist">제목이나 부제목을 입력하세요</div>';return;}
-  const all=Object.values(tasks).filter(t=>!t.deleted&&((t.title||'').toLowerCase().includes(q)||(t.note||'').toLowerCase().includes(q)));
+  const all=Object.values(tasks).filter(t=>!t.deleted&&inSpace(t)&&((t.title||'').toLowerCase().includes(q)||(t.note||'').toLowerCase().includes(q)));
   // 최근 날짜가 위로, 보관함은 맨 아래
   all.sort((a,b)=>(!!a.archived-!!b.archived)||(a.date<b.date?1:a.date>b.date?-1:0));
   if(!all.length){box.innerHTML='<div class="nolist">검색 결과가 없습니다</div>';return;}
@@ -950,7 +1004,7 @@ async function moveInstance(t,fromDate,toDate){
     const n={...t,skipDates:{...(t.skipDates||{}),[fromDate]:true},updatedAt:Date.now()};
     if(already&&n.skipDates[toDate])delete n.skipDates[toDate];   // 그 날을 뺀 적 있으면 되살림
     await store.put(n);
-    if(!already) await store.put({id:uid(),title:t.title,note:t.note||'',date:toDate,time:t.time||null,alarms:alarmsOf(t),done:false,repeat:null,priority:priOf(t),createdAt:Date.now(),updatedAt:Date.now()});
+    if(!already) await store.put({id:uid(),title:t.title,note:t.note||'',date:toDate,time:t.time||null,alarms:alarmsOf(t),done:false,repeat:null,priority:priOf(t),space:spaceOf(t),createdAt:Date.now(),updatedAt:Date.now()});
   }else{
     const n={...t,date:toDate,done:false,updatedAt:Date.now()};delete n.origDate;   // 직접 옮기면 "n/n부터" 표시 해제
     await store.put(n);
@@ -975,9 +1029,10 @@ function restoreTask(id){
 // 30일 지난 휴지통 항목은 완전 삭제 (앱 열 때 한 번)
 let purged=false;
 function purgeOld(){
-  if(purged)return;purged=true;
+  if(purged||!store)return;purged=true;
   const limit=Date.now()-30*24*60*60*1000;
-  for(const t of trashed()) if((t.deletedAt||0)<limit) store.remove(t.id);
+  // 공간과 무관하게 전부 정리 (휴지통 화면은 공간별로 보여 주지만, 오래된 것은 어느 쪽이든 지움)
+  for(const t of Object.values(tasks)) if(t.deleted&&(t.deletedAt||0)<limit) store.remove(t.id);
 }
 
 /* 휴지통 화면 */
@@ -1133,10 +1188,11 @@ async function syncPushSub(){
     const reg=await navigator.serviceWorker.ready; const sub=await reg.pushManager.getSubscription(); if(sub)await savePushSub(sub);
   }catch(e){console.warn('push sync',e);}
 }
-// 알림을 눌러 열렸을 때 그 날짜로
-function gotoDate(s){if(!/^\d{4}-\d{2}-\d{2}$/.test(s))return;selDate=s;const d=parse(s);viewY=d.getFullYear();viewM=d.getMonth();render();}
-{const q=new URLSearchParams(location.search).get('d');if(q){gotoDate(q);history.replaceState(null,'',location.pathname);}}
-if('serviceWorker' in navigator)navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.type==='goto')gotoDate(e.data.date);});
+// 알림을 눌러 열렸을 때 그 날짜로 (개인 일정 알림이면 개인 공간으로 바꿔서)
+function gotoDate(s,sp){if(sp&&sp!==space)setSpace(sp,true);if(!/^\d{4}-\d{2}-\d{2}$/.test(s))return;selDate=s;const d=parse(s);viewY=d.getFullYear();viewM=d.getMonth();render();}
+{const p=new URLSearchParams(location.search), q=p.get('d');
+ if(q){gotoDate(q,p.get('s'));history.replaceState(null,'',location.pathname+(p.get('s')?'?s='+p.get('s'):''));}}
+if('serviceWorker' in navigator)navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.type==='goto')gotoDate(e.data.date,e.data.space);});
 $('alTimeClear').onclick=()=>{$('alTime').value='';};
 $('fTimeClear').onclick=()=>{$('fTime').value='';};
 $('alCancel').onclick=hide;
@@ -1198,7 +1254,7 @@ $('fSave').onclick=()=>{
     // 보관함 항목: 날짜·반복 없이 제목·색만
     const now=Date.now();
     if(cur) store.put({...cur,title,note,priority:fPri,updatedAt:now});
-    else store.put({id:uid(),title,note,date:todayStr(),done:false,repeat:null,priority:fPri,archived:true,order:topOrder(null,fPri),createdAt:now,updatedAt:now});
+    else store.put({id:uid(),title,note,date:todayStr(),done:false,repeat:null,priority:fPri,space,archived:true,order:topOrder(null,fPri),createdAt:now,updatedAt:now});
     hide();setTimeout(openArchive,150);return;
   }
   if(!date){$('fDate').focus();return;}
@@ -1211,7 +1267,7 @@ $('fSave').onclick=()=>{
     if(!repeat){delete n.doneDates;delete n.skipDates;n.done=!!cur.done;}
     store.put(n);
   }else{
-    store.put({id:uid(),title,note,date,time,alarms:[],done:false,repeat,priority:fPri,order:topOrder(date,fPri),createdAt:now,updatedAt:now});
+    store.put({id:uid(),title,note,date,time,alarms:[],done:false,repeat,priority:fPri,space,order:topOrder(date,fPri),createdAt:now,updatedAt:now});
   }
   hide();
   render();
@@ -1279,6 +1335,7 @@ async function boot(){
   $('pw').onkeydown=e=>{if(e.key==='Enter')$('loginBtn').click();};
   $('logoutBtn').onclick=()=>askConfirm('로그아웃 할까요?','로그아웃',false,()=>firebase.auth().signOut());
 }
+setSpace(space,true);   // 화면 제목·탭을 지금 공간에 맞춰 둠 (일정은 boot 뒤에 그려짐)
 boot();
 
 // 자정이 지나거나 앱을 다시 열면 "오늘" 표시 갱신
