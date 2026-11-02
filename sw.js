@@ -1,7 +1,7 @@
 // 앱 껍데기 캐시 (오프라인에서도 열리게). 네트워크 우선(서버에 새 버전 있는지 매번 확인), 실패 시 캐시.
 // GitHub Pages가 10분 캐시 헤더를 보내므로 cache:'no-cache'로 브라우저 캐시를 건너뛰어야 수정이 바로 반영됨.
-const CACHE = 'worktodo-v4';
-const SHELL = ['./', './index.html', './config.js', './manifest.json', './manifest-home.json',
+const CACHE = 'worktodo-v5';
+const SHELL = ['./', './index.html', './home/', './config.js', './manifest.json', './manifest-home.json',
   './icon-192.png', './icon-512.png', './icon-180.png', './icon-home-192.png', './icon-home-512.png', './icon-home-180.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -42,7 +42,9 @@ self.addEventListener('notificationclick', e => {
   e.notification.close();
   const data = e.notification.data || {};
   const date = data.date || '', space = data.space === 'home' ? 'home' : 'work';
-  const target = new URL('./?s=' + space + (date ? '&d=' + date : ''), self.location.href).href;
+  // 개인 일정 알림은 개인용 주소(home/)로 열어 제목·아이콘까지 개인 것으로 뜨게
+  const target = new URL(space === 'home' ? './home/' + (date ? '?d=' + date : '')
+                                          : './?s=work' + (date ? '&d=' + date : ''), self.location.href).href;
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
     for (const c of list) {
       if ('focus' in c) { c.focus(); c.postMessage({ type: 'goto', date, space }); return; }

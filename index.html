@@ -17,7 +17,8 @@
    아이폰·PC 는 "홈 화면에 추가" 하는 순간의 제목·아이콘·manifest 를 그대로 쓰므로,
    화면을 그리기 전인 여기서 먼저 바꿔 둬야 아이콘을 회사용·개인용 2개로 따로 만들 수 있다. */
 (function(){
-  var q=new URLSearchParams(location.search).get('s'), s=q;
+  // 주소의 ?s= 가 먼저, 다음이 이 파일의 기본값(개인용 주소 home/index.html 이 정해 줌), 마지막이 기억해 둔 공간
+  var q=new URLSearchParams(location.search).get('s'), s=q||window.__SPACE_DEFAULT;
   if(s!=='home'&&s!=='work'){try{s=localStorage.getItem('worktodo.space');}catch(e){s=null;}}
   window.__SPACE=(s==='home')?'home':'work';
   if(window.__SPACE==='home'){
