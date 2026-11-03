@@ -1,0 +1,49 @@
+name: 공휴일 갱신
+
+# 애플 "대한민국 공휴일" 캘린더(아이폰 기본 공휴일과 같은 것)를 받아 holidays.json 을 새로 만듦.
+# 대체공휴일·선거일 같은 임시공휴일이 새로 정해지면 애플이 넣는 대로 다음 실행 때 앱에 반영됨.
+#
+# 결과는 main 이 아니라 holidays 브랜치에만 올림 (바뀐 게 있을 때만).
+#   → main 은 그대로라 GitHub Desktop 에 "Pull origin" 이 뜨지 않음. 앱은 holidays 브랜치 파일을 직접 읽음.
+#   holidays 브랜치는 이 파일 하나만 든 브랜치이고 매번 통째로 덮어씀 (손대지 말 것).
+# 급하면 Actions → 공휴일 갱신 → Run workflow.
+on:
+  schedule:
+    - cron: "41 18 * * 0"     # 매주 월요일 03:41 (한국) = 일요일 18:41 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: 지난번 결과 가져오기 (지난 날짜를 지우지 않으려고)
+        run: |
+          if git fetch -q origin holidays 2>/dev/null; then
+            git show origin/holidays:holidays.json > holidays.json
+            echo "holidays 브랜치의 지난 파일에서 시작"
+          else
+            echo "holidays 브랜치 없음 — main 의 holidays.json 에서 시작"
+          fi
+          cp holidays.json /tmp/before.json
+      - name: 공휴일 받아서 holidays.json 갱신
+        run: node server/update-holidays.js
+      - name: 바뀌었으면 holidays 브랜치에 올리기
+        run: |
+          if git ls-remote -q --exit-code origin holidays >/dev/null && cmp -s holidays.json /tmp/before.json; then
+            echo "변경 없음"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -q --orphan holidays-new
+          git rm -rfq --cached .
+          git add holidays.json
+          git commit -qm "공휴일 자동 갱신 $(date +%F)"
+          git push -qf origin HEAD:holidays
+          echo "holidays 브랜치에 올림"

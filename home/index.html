@@ -81,7 +81,7 @@ body[data-space=home] .cal-head .month::before{background:#6d28d9}
 .day .chip.empty{background:#f1f1f3}
 .day .chip.done{background:var(--text);color:#fff}
 .day .num{font-size:13px;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:500}
-.day.sun .num{color:var(--red)}.day.sat .num{color:var(--blue)}
+.day.sun .num{color:var(--red)}.day.sat .num{color:var(--blue)}.day.hol .num{color:var(--red)}
 .day.other{opacity:.35}
 .day.today .num{box-shadow:inset 0 0 0 1.5px var(--text)}
 .day.sel .num{background:var(--text);color:#fff !important;box-shadow:none;font-weight:700}
@@ -90,6 +90,7 @@ body[data-space=home] .cal-head .month::before{background:#6d28d9}
 .list-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .list-head .date{font-size:16px;font-weight:800}
 .list-head .date small{font-weight:500;color:var(--sub);margin-left:6px;font-size:13px}
+.list-head .date .holn{display:block;font-size:12px;font-weight:600;color:var(--red);margin-top:2px}
 .list-head .add{width:32px;height:32px;border-radius:50%;background:#f2f2f4;font-size:22px;line-height:1;display:flex;align-items:center;justify-content:center;padding-bottom:2px}
 .task{display:flex;align-items:center;gap:12px;padding:11px 4px;border-bottom:1px solid var(--line)}
 .task:last-child{border-bottom:0}
@@ -229,7 +230,7 @@ body.selmode .app{padding-bottom:180px}
 .pick-wd span:first-child{color:var(--red)}.pick-wd span:last-child{color:var(--blue)}
 .pick-grid{display:grid;grid-template-columns:repeat(7,1fr);row-gap:4px;justify-items:center}
 .pick-grid .pd{width:36px;height:36px;border-radius:50%;font-size:15px;display:flex;align-items:center;justify-content:center}
-.pick-grid .pd.sun{color:var(--red)}.pick-grid .pd.sat{color:var(--blue)}
+.pick-grid .pd.sun{color:var(--red)}.pick-grid .pd.sat{color:var(--blue)}.pick-grid .pd.hol{color:var(--red)}
 .pick-grid .pd.today{box-shadow:inset 0 0 0 1.5px var(--text)}
 .pick-grid .pd.sel{background:var(--text);color:#fff !important;box-shadow:none;font-weight:700}
 
@@ -243,6 +244,26 @@ body.selmode .app{padding-bottom:180px}
 .form .wd{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:8px}
 .form .wd button{height:36px;border-radius:50%;background:#f2f2f4;font-size:13px;font-weight:600;color:var(--chipText)}
 .form .wd button.on{background:var(--text);color:#fff}
+/* 반복 — 사용자 지정 */
+.form .rc{margin-top:10px;padding:12px;border-radius:14px;background:#f8f8fa;border:1px solid #ececf0}
+.form .rc .seg{margin-top:0}
+.form .rc .seg+.ival,.form .rc .ival+.seg{margin-top:10px}
+.form .ival{display:flex;align-items:center;gap:8px;margin-top:10px}
+.form .ival button{width:36px;height:36px;border-radius:50%;background:#fff;border:1px solid #e2e2e6;font-size:18px;font-weight:700;color:var(--text);flex:none}
+.form .ival input{width:56px;height:36px;border:1px solid #e2e2e6;border-radius:10px;text-align:center;font-size:16px;font-weight:700;background:#fff;color:var(--text);-moz-appearance:textfield;appearance:textfield}
+.form .ival input::-webkit-inner-spin-button,.form .ival input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.form .ival span{font-size:14px;font-weight:600;color:var(--text)}
+.form .md,.form .mo{display:grid;gap:5px;margin-top:10px}
+.form .md{grid-template-columns:repeat(7,1fr)}
+.form .mo{grid-template-columns:repeat(6,1fr)}
+.form .md button,.form .mo button{height:34px;border-radius:10px;background:#fff;border:1px solid #e2e2e6;font-size:13px;font-weight:600;color:var(--chipText)}
+.form .md button.on,.form .mo button.on{background:var(--text);border-color:var(--text);color:#fff}
+.form .nth{display:flex;gap:8px;margin-top:10px}
+.form .nth select{flex:1;min-width:0;height:40px;border:1px solid #e2e2e6;border-radius:10px;background:#fff;font-size:15px;padding:0 10px;color:var(--text)}
+.form label.tg{display:flex;align-items:center;gap:8px;margin:10px 0 0;font-size:13px;color:var(--text)}
+.form label.tg input{width:18px;height:18px}
+.form .rsum{margin-top:8px;font-size:13px;font-weight:600;color:var(--blue)}
+.timerow input[type=date]{flex:1;min-width:0}
 .form .actions{display:flex;gap:10px;margin-top:20px}
 .form .actions button{flex:1;padding:14px;border-radius:14px;font-weight:700;font-size:15px;background:#f2f2f4}
 .form .actions button.primary{background:var(--text);color:#fff}
@@ -446,11 +467,31 @@ body.selmode .app{padding-bottom:180px}
       <button data-v="daily">매일</button>
       <button data-v="weekdays">평일</button>
       <button data-v="weekly">매주</button>
+      <button data-v="weekly2">2주마다</button>
       <button data-v="monthly">매월</button>
       <button data-v="yearly">매년</button>
+      <button data-v="custom">사용자 지정</button>
+    </div>
+    <!-- 사용자 지정: 아이폰 캘린더의 "사용자화"와 같은 항목 -->
+    <div class="rc hidden" id="fCustom">
+      <div class="seg" id="fFreq"><button data-f="daily">일</button><button data-f="weekly">주</button><button data-f="monthly">월</button><button data-f="yearly">년</button></div>
+      <div class="ival"><button type="button" id="fIvMinus">−</button><input type="number" id="fIv" min="1" max="99" value="1" inputmode="numeric"><button type="button" id="fIvPlus">+</button><span id="fIvUnit">일마다</span></div>
+      <div class="seg hidden" id="fMonthMode"><button data-m="each">날짜 고르기</button><button data-m="nth">몇째 요일</button></div>
+      <div class="mo hidden" id="fMonths"></div>
+      <label class="tg hidden" id="fYearNthRow"><input type="checkbox" id="fYearNth"> 요일로 정하기 (예: 첫째 월요일)</label>
+      <div class="md hidden" id="fMonthDays"></div>
+      <div class="nth hidden" id="fNth">
+        <select id="fNthPos"><option value="1">첫째</option><option value="2">둘째</option><option value="3">셋째</option><option value="4">넷째</option><option value="5">다섯째</option><option value="-1">마지막</option></select>
+        <select id="fNthKind"><option value="0">일요일</option><option value="1">월요일</option><option value="2">화요일</option><option value="3">수요일</option><option value="4">목요일</option><option value="5">금요일</option><option value="6">토요일</option><option value="day">날</option><option value="weekday">평일</option><option value="weekend">주말</option></select>
+      </div>
     </div>
     <div class="wd hidden" id="fWeekdays">
       <button data-d="0">일</button><button data-d="1">월</button><button data-d="2">화</button><button data-d="3">수</button><button data-d="4">목</button><button data-d="5">금</button><button data-d="6">토</button>
+    </div>
+    <div class="rsum hidden" id="fRepSum"></div>
+    <div id="fUntilRow" class="hidden">
+      <label>반복 종료 <span class="opt">(선택 · 비워 두면 계속 반복)</span></label>
+      <div class="timerow"><input type="date" id="fUntil"><button type="button" id="fUntilClear" class="clr">안 함</button></div>
     </div>
     </div>
     <div class="actions">
@@ -532,6 +573,7 @@ body.selmode .app{padding-bottom:180px}
 
 <div class="toast" id="toast"><span id="toastText"></span><button id="toastUndo" class="hidden">되돌리기</button></div>
 
+<script src="repeat.js"></script>
 <script src="config.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
@@ -560,39 +602,28 @@ let viewY, viewM;        // 보고 있는 달
 let store=null;
 
 /* ───────────── 반복 규칙 ─────────────
- task = { id, title, date:'YYYY-MM-DD', done, repeat:null|{type,weekdays[]},
+ task = { id, title, date:'YYYY-MM-DD', done, repeat:null|{type,interval,weekdays,monthDays,months,nth,until},
           doneDates:{date:true}, skipDates:{date:true}, createdAt, updatedAt }
  반복 일정은 시작일(date) 이후 규칙에 맞는 날마다 "가상 인스턴스"로 나타남.
- 완료는 doneDates, 특정 날만 뺀 것은 skipDates 에 기록.                  */
-function occursOn(t,date){
-  if(!t.repeat||t.repeat.type==='none') return t.date===date;
-  if(date<t.date) return false;
-  if(t.skipDates&&t.skipDates[date]) return false;
-  const d=parse(date), w=d.getDay();
-  switch(t.repeat.type){
-    case 'daily': return true;
-    case 'weekdays': return w>=1&&w<=5;
-    case 'weekly': return (t.repeat.weekdays||[]).includes(w);
-    // 매월: 31일처럼 그 달에 없는 날짜면 그 달 마지막 날에 (2월은 28·29일)
-    case 'monthly': {const want=parse(t.date).getDate(), last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate(); return d.getDate()===Math.min(want,last);}
-    // 매년: 같은 월·일에. 2월 29일처럼 그 해에 없는 날짜면 그 달 마지막 날에 (평년은 2월 28일)
-    case 'yearly': {const b=parse(t.date); if(d.getMonth()!==b.getMonth())return false;
-      const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate(); return d.getDate()===Math.min(b.getDate(),last);}
-  }
-  return false;
-}
-const isRepeat=t=>!!(t.repeat&&t.repeat.type!=='none');
+ 완료는 doneDates, 특정 날만 뺀 것은 skipDates 에 기록.
+ 규칙 자체는 repeat.js (알림 서버와 같이 씀) — 반복 종류를 고칠 땐 그 파일만.   */
+const {occursOn,isRepeat}=RepeatRule, repeatLabel=RepeatRule.label;
 const isDone=(t,date)=>isRepeat(t)?!!(t.doneDates&&t.doneDates[date]):!!t.done;
-function repeatLabel(t){
-  if(!isRepeat(t)) return '';
-  const r=t.repeat;
-  if(r.type==='daily') return '매일';
-  if(r.type==='weekdays') return '평일';
-  if(r.type==='weekly') return '매주 '+(r.weekdays||[]).slice().sort().map(d=>WD[d]).join('');
-  if(r.type==='monthly') return '매월 '+parse(t.date).getDate()+'일';
-  if(r.type==='yearly'){const b=parse(t.date);return `매년 ${b.getMonth()+1}월 ${b.getDate()}일`;}
-  return '';
-}
+
+/* 공휴일 — 애플 "대한민국 공휴일"과 같은 자료 (대체공휴일·선거일 포함). 회사·개인 둘 다 표시.
+   최신본은 GitHub 가 매주 받아 holidays 브랜치에만 올림(.github/workflows/holidays.yml) → main 은 안 바뀌어서
+   GitHub Desktop 에 Pull 이 뜨지 않음. 앱 안의 holidays.json 은 처음 값·오프라인용.
+   셋(앱 안 파일 / 이 기기에 받아 둔 것 / holidays 브랜치) 중 updated 가 가장 새것을 씀 */
+const HOL_LATEST='https://raw.githubusercontent.com/outsidecat-jw/worktodo/holidays/holidays.json';
+let HOL={}, HOL_UPD='';
+const useHol=j=>{if(!j||!j.days||(j.updated||'')<HOL_UPD)return false;HOL=j.days;HOL_UPD=j.updated||'';return true;};
+try{useHol(JSON.parse(localStorage.getItem('worktodo.holidays')));}catch(e){}
+{const get=u=>fetch(u,{cache:'no-cache'}).then(r=>r.ok?r.json():null).catch(()=>null);
+ Promise.all([get('holidays.json'),get(HOL_LATEST)]).then(([local,latest])=>{
+   const a=useHol(local), b=useHol(latest);
+   if(b)try{localStorage.setItem('worktodo.holidays',JSON.stringify(latest));}catch(e){}
+   if((a||b)&&store)render();
+ });}
 /* 우선순위: red(급함) > blue(보통, 기본) > green(여유) */
 const PRI=['red','blue','green'], PRI_LABEL={red:'급함',blue:'보통',green:'여유'};
 const priOf=t=>PRI.includes(t.priority)?t.priority:'blue';
@@ -741,7 +772,7 @@ function renderCalendar(){
     const inst=instancesOn(s);
     const undone=inst.filter(t=>!isDone(t,s)).length;
     const el=document.createElement('div');el.setAttribute('role','button');
-    el.className='day'+(d.getDay()===0?' sun':'')+(d.getDay()===6?' sat':'')+(inMonth?'':' other')+(s===today?' today':'')+(s===selDate?' sel':'');
+    el.className='day'+(d.getDay()===0?' sun':'')+(d.getDay()===6?' sat':'')+(HOL[s]?' hol':'')+(inMonth?'':' other')+(s===today?' today':'')+(s===selDate?' sel':'');
     let chip='';
     if(inst.length===0) chip='<span class="chip empty"></span>';
     else if(undone===0) chip='<span class="chip done">&#10003;</span>';
@@ -756,7 +787,7 @@ function renderList(){
   const d=parse(selDate);
   const today=todayStr();
   const rel=selDate===today?'오늘':selDate===addDays(today,1)?'내일':selDate===addDays(today,-1)?'어제':'';
-  $('selLabel').innerHTML=`${d.getMonth()+1}월 ${d.getDate()}일 (${WD[d.getDay()]})<small>${rel}</small>`;
+  $('selLabel').innerHTML=`${d.getMonth()+1}월 ${d.getDate()}일 (${WD[d.getDay()]})<small>${rel}</small>`+(HOL[selDate]?`<span class="holn">${esc(HOL[selDate])}</span>`:'');
   renderOverdue();
   const box=$('tasks');box.innerHTML='';
   const inst=instancesOn(selDate);
@@ -834,7 +865,7 @@ $('sbMove').onclick=()=>{if(!selIds.size){toast('선택된 일정이 없습니�
 /* ───────────── 검색 ───────────── */
 function esc(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function hl(text,q){const i=text.toLowerCase().indexOf(q);if(i<0)return esc(text);return esc(text.slice(0,i))+'<mark>'+esc(text.slice(i,i+q.length))+'</mark>'+esc(text.slice(i+q.length));}
-function nextOccurrence(t){const today=todayStr();if(!isRepeat(t))return t.date;for(let i=0;i<400;i++){const s=addDays(today,i);if(occursOn(t,s))return s;}return t.date;}
+function nextOccurrence(t){const today=todayStr();if(!isRepeat(t))return t.date;for(let i=0;i<3700;i++){const s=addDays(today,i);if(occursOn(t,s))return s;}return t.date;}   // 10년 (N년마다 반복도 찾게)
 function renderSearch(){
   const q=$('searchIn').value.trim().toLowerCase();
   const box=$('searchList');box.innerHTML='';
@@ -1113,7 +1144,7 @@ function renderPick(){
   for(let d=1;d<=last;d++){
     const s=ymd(new Date(pickY,pickM,d)), w=(first.getDay()+d-1)%7;
     const b=document.createElement('button');
-    b.className='pd'+(w===0?' sun':'')+(w===6?' sat':'')+(s===today?' today':'')+(s===pickDate?' sel':'');
+    b.className='pd'+(w===0?' sun':'')+(w===6?' sat':'')+(HOL[s]?' hol':'')+(s===today?' today':'')+(s===pickDate?' sel':'');
     b.textContent=d;
     b.onclick=()=>{pickDate=s;renderPick();};
     g.appendChild(b);
@@ -1217,20 +1248,113 @@ $('mSave').onclick=()=>{const v=pickDate;if(!v)return;hide();
   moveInstance(cur,curDate,v);const d=parse(v);toast(`${d.getMonth()+1}월 ${d.getDate()}일로 옮겼습니다`);backToArch();};
 
 /* 추가/수정 폼 */
-let fRepeatType='none', fWeek=new Set(), fPri='red';
+let fPri='red';
 function setPrioUI(p){fPri=p;[...$('fPrio').querySelectorAll('.pc')].forEach(b=>b.classList.toggle('on',b.dataset.p===p));$('fPrioLabel').textContent=PRI_LABEL[p];}
 $('fPrio').onclick=e=>{const b=e.target.closest('.pc');if(b)setPrioUI(b.dataset.p);};
-function setRepeatUI(type,weekdays){
-  fRepeatType=type;fWeek=new Set(weekdays||[]);
-  [...$('fRepeat').children].forEach(b=>b.classList.toggle('on',b.dataset.v===type));
-  $('fWeekdays').classList.toggle('hidden',type!=='weekly');
-  [...$('fWeekdays').children].forEach(b=>b.classList.toggle('on',fWeek.has(+b.dataset.d)));
+
+/* 반복 입력 — 아이폰 캘린더와 같은 메뉴: 없음·매일·(평일)·매주·2주마다·매월·매년·사용자 지정 + 반복 종료
+   fr = 폼 상태. 저장할 때 repeatFromForm() 이 repeat 객체로 바꿈 (규칙은 repeat.js) */
+const fr={mode:'none',freq:'daily',iv:1,week:new Set(),mMode:'each',mDays:new Set(),months:new Set(),yNth:false,pos:1,kind:0};
+{ // 날짜·달 버튼 만들기
+  let h='';for(let i=1;i<=31;i++)h+=`<button type="button" data-n="${i}">${i}</button>`;$('fMonthDays').innerHTML=h;
+  h='';for(let i=0;i<12;i++)h+=`<button type="button" data-n="${i}">${i+1}월</button>`;$('fMonths').innerHTML=h;
+}
+const fStart=()=>parse($('fDate').value||selDate);
+// 시작일 기준 기본값 (비어 있는 선택만 채움)
+function frDefaults(){const b=fStart();
+  if(!fr.week.size)fr.week.add(b.getDay());
+  if(!fr.mDays.size)fr.mDays.add(b.getDate());
+  if(!fr.months.size)fr.months.add(b.getMonth());
+}
+function repeatFromForm(){
+  const m=fr.mode, wd=[...fr.week].sort();
+  if(m==='none')return null;
+  let r;
+  if(m==='daily'||m==='weekdays'||m==='monthly'||m==='yearly') r={type:m};
+  else if(m==='weekly') r={type:'weekly',weekdays:wd};
+  else if(m==='weekly2') r={type:'weekly',interval:2,weekdays:wd};
+  else { // 사용자 지정
+    r={type:fr.freq};
+    if(fr.iv>1)r.interval=fr.iv;
+    if(fr.freq==='weekly')r.weekdays=wd;
+    // 시작일의 날짜·달 하나만 고른 건 기본형으로 저장 (31일처럼 없는 달엔 마지막 날 — 매월·매년과 같은 규칙)
+    const b=fStart(), only=(set,v)=>set.size===1&&set.has(v);
+    if(fr.freq==='monthly'){if(fr.mMode==='nth')r.nth={pos:fr.pos,kind:fr.kind};else if(!only(fr.mDays,b.getDate()))r.monthDays=[...fr.mDays].sort((a,c)=>a-c);}
+    if(fr.freq==='yearly'){if(!only(fr.months,b.getMonth()))r.months=[...fr.months].sort((a,c)=>a-c);if(fr.yNth)r.nth={pos:fr.pos,kind:fr.kind};}
+  }
+  const u=$('fUntil').value; if(u)r.until=u;
+  return r;
+}
+function renderRepeatUI(){
+  const m=fr.mode, custom=m==='custom', f=fr.freq;
+  [...$('fRepeat').children].forEach(b=>b.classList.toggle('on',b.dataset.v===m));
+  $('fCustom').classList.toggle('hidden',!custom);
+  [...$('fFreq').children].forEach(b=>b.classList.toggle('on',b.dataset.f===f));
+  $('fIv').value=fr.iv;
+  $('fIvUnit').textContent={daily:'일마다',weekly:'주마다',monthly:'개월마다',yearly:'년마다'}[f];
+  const wk=m==='weekly'||m==='weekly2'||(custom&&f==='weekly');
+  $('fWeekdays').classList.toggle('hidden',!wk);
+  [...$('fWeekdays').children].forEach(b=>b.classList.toggle('on',fr.week.has(+b.dataset.d)));
+  const mon=custom&&f==='monthly', yr=custom&&f==='yearly';
+  $('fMonthMode').classList.toggle('hidden',!mon);
+  [...$('fMonthMode').children].forEach(b=>b.classList.toggle('on',b.dataset.m===fr.mMode));
+  $('fMonthDays').classList.toggle('hidden',!(mon&&fr.mMode==='each'));
+  [...$('fMonthDays').children].forEach(b=>b.classList.toggle('on',fr.mDays.has(+b.dataset.n)));
+  $('fMonths').classList.toggle('hidden',!yr);
+  [...$('fMonths').children].forEach(b=>b.classList.toggle('on',fr.months.has(+b.dataset.n)));
+  $('fYearNthRow').classList.toggle('hidden',!yr);
+  $('fYearNth').checked=fr.yNth;
+  $('fNth').classList.toggle('hidden',!((mon&&fr.mMode==='nth')||(yr&&fr.yNth)));
+  $('fNthPos').value=String(fr.pos);$('fNthKind').value=String(fr.kind);
+  $('fUntilRow').classList.toggle('hidden',m==='none');
+  // 요약: 실제로 저장될 규칙을 그대로 글로
+  const r=repeatFromForm(), sum=$('fRepSum');
+  sum.classList.toggle('hidden',!r);
+  if(r)sum.textContent='→ '+repeatLabel({date:$('fDate').value||selDate,repeat:r});
+}
+// 저장된 repeat → 폼 상태 (프리셋으로 나타낼 수 있으면 프리셋, 아니면 사용자 지정)
+function setRepeatUI(r){
+  const b=fStart();
+  Object.assign(fr,{mode:'none',freq:'daily',iv:1,week:new Set(),mMode:'each',mDays:new Set(),months:new Set(),yNth:false,pos:Math.min(Math.ceil(b.getDate()/7),5),kind:b.getDay()});
+  $('fUntil').value=r&&r.until?r.until:'';
+  if(r&&r.type&&r.type!=='none'){
+    const n=Math.max(1,Math.floor(Number(r.interval)||1));
+    fr.freq=r.type==='weekdays'?'daily':r.type; fr.iv=n;
+    (r.weekdays||[]).forEach(d=>fr.week.add(d));
+    (r.monthDays||[]).forEach(d=>fr.mDays.add(d));
+    (r.months||[]).forEach(d=>fr.months.add(d));
+    if(r.nth){fr.pos=r.nth.pos;fr.kind=r.nth.kind;fr.mMode='nth';fr.yNth=r.type==='yearly';}
+    const plain=!r.nth&&!(r.monthDays&&r.monthDays.length)&&!(r.months&&r.months.length);
+    if(r.type==='weekdays')fr.mode='weekdays';
+    else if(r.type==='weekly'&&n<=2)fr.mode=n===2?'weekly2':'weekly';
+    else if(n===1&&plain&&r.type!=='weekly')fr.mode=r.type;
+    else fr.mode='custom';
+  }
+  frDefaults();
+  renderRepeatUI();
 }
 $('fRepeat').onclick=e=>{const b=e.target.closest('button');if(!b)return;
-  if(b.dataset.v==='weekly'&&fWeek.size===0) fWeek.add(parse($('fDate').value||selDate).getDay());
-  setRepeatUI(b.dataset.v,[...fWeek]);};
-$('fWeekdays').onclick=e=>{const b=e.target.closest('button');if(!b)return;const d=+b.dataset.d;
-  if(fWeek.has(d))fWeek.delete(d);else fWeek.add(d);setRepeatUI('weekly',[...fWeek]);};
+  const v=b.dataset.v;
+  if(v==='custom'&&fr.mode!=='custom'){   // 지금 고른 것에서 이어서 시작 (매월 → 월, 2주마다 → 주·2 …)
+    fr.freq={daily:'daily',weekdays:'daily',weekly:'weekly',weekly2:'weekly',monthly:'monthly',yearly:'yearly'}[fr.mode]||'daily';
+    fr.iv=fr.mode==='weekly2'?2:1;
+  }
+  fr.mode=v;frDefaults();renderRepeatUI();};
+$('fFreq').onclick=e=>{const b=e.target.closest('button');if(!b)return;fr.freq=b.dataset.f;frDefaults();renderRepeatUI();};
+$('fMonthMode').onclick=e=>{const b=e.target.closest('button');if(!b)return;fr.mMode=b.dataset.m;renderRepeatUI();};
+const setIv=v=>{fr.iv=Math.min(99,Math.max(1,Math.floor(Number(v))||1));renderRepeatUI();};
+$('fIvMinus').onclick=()=>setIv(fr.iv-1); $('fIvPlus').onclick=()=>setIv(fr.iv+1);
+$('fIv').onchange=()=>setIv($('fIv').value);
+const toggleIn=(set,n)=>{if(set.has(n))set.delete(n);else set.add(n);};
+$('fWeekdays').onclick=e=>{const b=e.target.closest('button');if(!b)return;toggleIn(fr.week,+b.dataset.d);renderRepeatUI();};
+$('fMonthDays').onclick=e=>{const b=e.target.closest('button');if(!b)return;toggleIn(fr.mDays,+b.dataset.n);renderRepeatUI();};
+$('fMonths').onclick=e=>{const b=e.target.closest('button');if(!b)return;toggleIn(fr.months,+b.dataset.n);renderRepeatUI();};
+$('fYearNth').onchange=()=>{fr.yNth=$('fYearNth').checked;renderRepeatUI();};
+$('fNthPos').onchange=()=>{fr.pos=+$('fNthPos').value;renderRepeatUI();};
+$('fNthKind').onchange=()=>{const v=$('fNthKind').value;fr.kind=/^\d$/.test(v)?+v:v;renderRepeatUI();};
+$('fUntilClear').onclick=()=>{$('fUntil').value='';renderRepeatUI();};
+$('fUntil').onchange=renderRepeatUI;
+$('fDate').addEventListener('change',renderRepeatUI);
 
 let fArchived=false;   // 보관함 항목 편집/추가 중이면 날짜·반복 칸 숨김
 function openEdit(t,focusRepeat,archivedMode){
@@ -1242,7 +1366,7 @@ function openEdit(t,focusRepeat,archivedMode){
   $('fDate').value=t?t.date:selDate;
   $('fDated').classList.toggle('hidden',fArchived);
   setPrioUI(t?priOf(t):'red');
-  setRepeatUI(t&&t.repeat?t.repeat.type:'none',t&&t.repeat?t.repeat.weekdays:[]);
+  setRepeatUI(t&&t.repeat?t.repeat:null);
   show('editSheet');
   if(!focusRepeat) $('fTitle').focus();
 }
@@ -1261,8 +1385,11 @@ $('fSave').onclick=()=>{
     hide();setTimeout(openArchive,150);return;
   }
   if(!date){$('fDate').focus();return;}
-  if(fRepeatType==='weekly'&&fWeek.size===0){toast('요일을 선택해 주세요');return;}
-  const repeat=fRepeatType==='none'?null:{type:fRepeatType,weekdays:fRepeatType==='weekly'?[...fWeek].sort():[]};
+  const repeat=repeatFromForm();
+  if(repeat&&repeat.type==='weekly'&&!repeat.weekdays.length){toast('요일을 선택해 주세요');return;}
+  if(repeat&&repeat.monthDays&&!repeat.monthDays.length){toast('날짜를 선택해 주세요');return;}
+  if(repeat&&repeat.months&&!repeat.months.length){toast('달을 선택해 주세요');return;}
+  if(repeat&&repeat.until&&repeat.until<date){toast('반복 종료일이 시작일보다 빠릅니다');$('fUntil').focus();return;}
   const now=Date.now();
   if(cur){
     const n={...cur,title,note,date,time,repeat,priority:fPri,updatedAt:now};

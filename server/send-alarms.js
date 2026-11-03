@@ -37,26 +37,8 @@ const pad = n => String(n).padStart(2, '0');
 const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const parse = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
 const addDays = (s, n) => { const d = parse(s); d.setDate(d.getDate() + n); return ymd(d); };
-const isRepeat = t => !!(t.repeat && t.repeat.type !== 'none');
-function occursOn(t, date) {
-  if (!isRepeat(t)) return t.date === date;
-  if (date < t.date) return false;
-  if (t.skipDates && t.skipDates[date]) return false;
-  const d = parse(date), w = d.getDay();
-  switch (t.repeat.type) {
-    case 'daily': return true;
-    case 'weekdays': return w >= 1 && w <= 5;
-    case 'weekly': return (t.repeat.weekdays || []).includes(w);
-    // 매월: 31일처럼 그 달에 없는 날짜면 그 달 마지막 날에
-    case 'monthly': { const want = parse(t.date).getDate(), last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); return d.getDate() === Math.min(want, last); }
-    // 매년: 같은 월·일에. 2월 29일처럼 그 해에 없으면 그 달 마지막 날에
-    case 'yearly': {
-      const b = parse(t.date); if (d.getMonth() !== b.getMonth()) return false;
-      const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); return d.getDate() === Math.min(b.getDate(), last);
-    }
-  }
-  return false;
-}
+// 반복 규칙은 앱과 같은 파일(../repeat.js)을 그대로 씀 — 달력에 뜨는 날 = 알림 가는 날
+const { occursOn, isRepeat } = require('../repeat.js');
 const isDone = (t, date) => isRepeat(t) ? !!(t.doneDates && t.doneDates[date]) : !!t.done;
 const PRI_LABEL = { red: '급함', blue: '보통', green: '여유' };
 function offsetLabel(m) {
