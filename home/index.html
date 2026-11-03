@@ -75,6 +75,12 @@ body[data-space=home] .cal-head .month::before{background:#6d28d9}
 .weekdays{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:12px;color:var(--sub);margin-bottom:6px}
 .weekdays span:first-child{color:var(--red)}.weekdays span:last-child{color:var(--blue)}
 .grid{display:grid;grid-template-columns:repeat(7,1fr);row-gap:6px}
+/* 달력 밀어서 넘기기: 세로 스크롤은 그대로, 가로 밀기는 앱이 받음 */
+#calCard{touch-action:pan-y;overflow:hidden}
+@keyframes calInL{from{transform:translateX(16%);opacity:.3}to{transform:none;opacity:1}}
+@keyframes calInR{from{transform:translateX(-16%);opacity:.3}to{transform:none;opacity:1}}
+.grid.slide-l{animation:calInL .18s ease-out}
+.grid.slide-r{animation:calInR .18s ease-out}
 .day{display:flex;flex-direction:column;align-items:center;gap:3px;padding:2px 0;border-radius:10px;line-height:1;cursor:pointer;user-select:none}
 .day .chip{width:30px;height:30px;border-radius:9px;background:var(--chip);display:flex;align-items:center;justify-content:center;
   font-size:13px;font-weight:700;color:var(--chipText)}
@@ -345,7 +351,7 @@ body.selmode .app{padding-bottom:180px}
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" id="calCard">
     <div class="cal-head">
       <div class="month" id="monthLabel"></div>
       <div class="cal-nav">
@@ -1409,6 +1415,23 @@ $('fSave').onclick=()=>{
 $('prevBtn').onclick=()=>{if(viewMode==='week'){selDate=addDays(selDate,-7);}else{viewM--;if(viewM<0){viewM=11;viewY--;}}render();};
 $('nextBtn').onclick=()=>{if(viewMode==='week'){selDate=addDays(selDate,7);}else{viewM++;if(viewM>11){viewM=0;viewY++;}}render();};
 $('todayBtn').onclick=()=>{selDate=todayStr();const t=new Date();viewY=t.getFullYear();viewM=t.getMonth();render();};
+// 달력을 손가락으로 밀어 넘기기 — 오른쪽으로 밀면 이전 달, 왼쪽으로 밀면 다음 달 (주간 보기면 한 주씩, 화살표와 같음)
+// 가로로 50px 넘게, 세로보다 확실히 많이 움직였을 때만 (위아래 스크롤과 안 헷갈리게)
+{let sx=0,sy=0,st=0,on=false;
+ const card=$('calCard');
+ $('grid').addEventListener('animationend',()=>$('grid').classList.remove('slide-l','slide-r'));   // 남겨 두면 화면 크기 바뀔 때 다시 움직임
+ card.addEventListener('touchstart',e=>{on=e.touches.length===1;if(!on)return;sx=e.touches[0].clientX;sy=e.touches[0].clientY;st=Date.now();},{passive:true});
+ card.addEventListener('touchcancel',()=>{on=false;},{passive:true});
+ card.addEventListener('touchend',e=>{
+   if(!on)return;on=false;
+   const t=e.changedTouches[0],dx=t.clientX-sx,dy=t.clientY-sy;
+   if(Math.abs(dx)<50||Math.abs(dx)<Math.abs(dy)*1.5||Date.now()-st>1000)return;
+   const next=dx<0;
+   (next?$('nextBtn'):$('prevBtn')).click();
+   const g=$('grid');g.classList.remove('slide-l','slide-r');void g.offsetWidth;g.classList.add(next?'slide-l':'slide-r');
+   setTimeout(()=>g.classList.remove('slide-l','slide-r'),400);   // animationend 가 안 오는 경우(앱이 뒤로 갔을 때 등) 대비
+ },{passive:true});
+}
 
 let toastT, toastUndoFn=null;
 function toast(msg,undoFn){
