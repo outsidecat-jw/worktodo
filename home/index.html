@@ -76,7 +76,7 @@ body[data-space=home] .cal-head .month::before{background:#6d28d9}
 .weekdays span:first-child{color:var(--red)}.weekdays span:last-child{color:var(--blue)}
 .grid{display:grid;grid-template-columns:repeat(7,1fr);row-gap:6px}
 /* 달력 밀어서 넘기기: 세로 스크롤은 그대로, 가로 밀기는 앱이 받음 */
-#calCard{touch-action:pan-y;overflow:hidden}
+#calCard{touch-action:pan-y;overflow:hidden;-webkit-user-select:none;user-select:none}
 @keyframes calInL{from{transform:translateX(16%);opacity:.3}to{transform:none;opacity:1}}
 @keyframes calInR{from{transform:translateX(-16%);opacity:.3}to{transform:none;opacity:1}}
 .grid.slide-l{animation:calInL .18s ease-out}
@@ -784,7 +784,7 @@ function renderCalendar(){
     else if(undone===0) chip='<span class="chip done">&#10003;</span>';
     else chip=`<span class="chip">${undone}</span>`;
     el.innerHTML=chip+`<span class="num">${d.getDate()}</span>`;
-    el.onclick=()=>{selDate=s;if(!inMonth){viewY=d.getFullYear();viewM=d.getMonth();}render();};
+    el.onclick=()=>{if(Date.now()-calSwipedAt<400)return;selDate=s;if(!inMonth){viewY=d.getFullYear();viewM=d.getMonth();}render();};
     g.appendChild(el);
   }
 }
@@ -1415,22 +1415,32 @@ $('fSave').onclick=()=>{
 $('prevBtn').onclick=()=>{if(viewMode==='week'){selDate=addDays(selDate,-7);}else{viewM--;if(viewM<0){viewM=11;viewY--;}}render();};
 $('nextBtn').onclick=()=>{if(viewMode==='week'){selDate=addDays(selDate,7);}else{viewM++;if(viewM>11){viewM=0;viewY++;}}render();};
 $('todayBtn').onclick=()=>{selDate=todayStr();const t=new Date();viewY=t.getFullYear();viewM=t.getMonth();render();};
-// 달력을 손가락으로 밀어 넘기기 — 오른쪽으로 밀면 이전 달, 왼쪽으로 밀면 다음 달 (주간 보기면 한 주씩, 화살표와 같음)
-// 가로로 50px 넘게, 세로보다 확실히 많이 움직였을 때만 (위아래 스크롤과 안 헷갈리게)
+// 달력을 밀어 넘기기 — 오른쪽으로 밀면 이전 달, 왼쪽으로 밀면 다음 달 (주간 보기면 한 주씩, 화살표와 같음)
+// 핸드폰은 손가락, PC 는 마우스로 끌기. 가로로 50px 넘게, 세로보다 확실히 많이 움직였을 때만 (위아래 스크롤과 안 헷갈리게)
+let calSwipedAt=0;   // 끌어서 넘긴 시각 — 바로 뒤따라오는 클릭으로 날짜가 눌리지 않게 (renderCalendar 에서 봄)
 {let sx=0,sy=0,st=0,on=false;
  const card=$('calCard');
  $('grid').addEventListener('animationend',()=>$('grid').classList.remove('slide-l','slide-r'));   // 남겨 두면 화면 크기 바뀔 때 다시 움직임
- card.addEventListener('touchstart',e=>{on=e.touches.length===1;if(!on)return;sx=e.touches[0].clientX;sy=e.touches[0].clientY;st=Date.now();},{passive:true});
- card.addEventListener('touchcancel',()=>{on=false;},{passive:true});
- card.addEventListener('touchend',e=>{
-   if(!on)return;on=false;
-   const t=e.changedTouches[0],dx=t.clientX-sx,dy=t.clientY-sy;
-   if(Math.abs(dx)<50||Math.abs(dx)<Math.abs(dy)*1.5||Date.now()-st>1000)return;
+ const begin=(x,y)=>{sx=x;sy=y;st=Date.now();on=true;};
+ const finish=(x,y)=>{
+   if(!on)return false;on=false;
+   const dx=x-sx,dy=y-sy;
+   if(Math.abs(dx)<50||Math.abs(dx)<Math.abs(dy)*1.5||Date.now()-st>1000)return false;
    const next=dx<0;
    (next?$('nextBtn'):$('prevBtn')).click();
    const g=$('grid');g.classList.remove('slide-l','slide-r');void g.offsetWidth;g.classList.add(next?'slide-l':'slide-r');
    setTimeout(()=>g.classList.remove('slide-l','slide-r'),400);   // animationend 가 안 오는 경우(앱이 뒤로 갔을 때 등) 대비
- },{passive:true});
+   calSwipedAt=Date.now();
+   return true;
+ };
+ // 손가락
+ card.addEventListener('touchstart',e=>{if(e.touches.length!==1){on=false;return;}begin(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
+ card.addEventListener('touchcancel',()=>{on=false;},{passive:true});
+ card.addEventListener('touchend',e=>{const t=e.changedTouches[0];finish(t.clientX,t.clientY);},{passive:true});
+ // 마우스 (왼쪽 버튼). 달력 밖에서 놓아도 됨
+ card.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&e.button===0)begin(e.clientX,e.clientY);});
+ card.addEventListener('dragstart',e=>e.preventDefault());   // 글자·그림 끌기 막기
+ window.addEventListener('pointerup',e=>{if(e.pointerType==='mouse')finish(e.clientX,e.clientY);});
 }
 
 let toastT, toastUndoFn=null;
