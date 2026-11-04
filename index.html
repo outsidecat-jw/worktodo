@@ -79,6 +79,10 @@ body[data-space=home] .cal-head .month::before{background:#6d28d9}
 @keyframes calInR{from{transform:translateX(-16%);opacity:.3}to{transform:none;opacity:1}}
 .grid.slide-l{animation:calInL .18s ease-out}
 .grid.slide-r{animation:calInR .18s ease-out}
+/* 할 일 목록: 좌우로 밀어 회사 ↔ 개인 전환 (아래 onSwipe) */
+.card.list{touch-action:pan-y;overflow:hidden;-webkit-user-select:none;user-select:none}
+.list.slide-l>*{animation:calInL .18s ease-out}
+.list.slide-r>*{animation:calInR .18s ease-out}
 .day{display:flex;flex-direction:column;align-items:center;gap:3px;padding:2px 0;border-radius:10px;line-height:1;cursor:pointer;user-select:none}
 .day .chip{width:30px;height:30px;border-radius:9px;background:var(--chip);display:flex;align-items:center;justify-content:center;
   font-size:13px;font-weight:700;color:var(--chipText)}
@@ -363,7 +367,7 @@ body.selmode .app{padding-bottom:180px}
     <div class="grid" id="grid"></div>
   </div>
 
-  <div class="card list">
+  <div class="card list" id="listCard">
     <div class="list-head">
       <div class="date" id="selLabel"></div>
       <div class="tools">
@@ -908,8 +912,8 @@ function makeRow(t,date){
   if(t.note){const n=row.querySelector('.nt');n.textContent=t.note;n.classList.remove('hidden');}
   // 자동 이월된 일정: 원래 날짜 표시
   if(t.origDate&&t.origDate!==t.date&&!isRepeat(t)){const s=row.querySelector('.since');const d=parse(t.origDate);s.textContent=`${d.getMonth()+1}/${d.getDate()}부터`;s.classList.remove('hidden');}
-  row.querySelector('.chk').onclick=()=>{if(selMode)toggleSelect(t.id,row,date);else toggleDone(t,date);};
-  row.querySelector('.title').onclick=()=>{if(selMode)toggleSelect(t.id,row,date);else openActions(t,date);};
+  row.querySelector('.chk').onclick=()=>{if(Date.now()-listSwipedAt<400)return;if(selMode)toggleSelect(t.id,row,date);else toggleDone(t,date);};
+  row.querySelector('.title').onclick=()=>{if(Date.now()-listSwipedAt<400)return;if(selMode)toggleSelect(t.id,row,date);else openActions(t,date);};
   row.querySelector('.grip').onpointerdown=e=>{if(!selMode)startDrag(e,row);};
   if(selMode&&selIds.has(t.id))row.classList.add('sel');
   return row;
@@ -1413,33 +1417,49 @@ $('fSave').onclick=()=>{
 $('prevBtn').onclick=()=>{if(viewMode==='week'){selDate=addDays(selDate,-7);}else{viewM--;if(viewM<0){viewM=11;viewY--;}}render();};
 $('nextBtn').onclick=()=>{if(viewMode==='week'){selDate=addDays(selDate,7);}else{viewM++;if(viewM>11){viewM=0;viewY++;}}render();};
 $('todayBtn').onclick=()=>{selDate=todayStr();const t=new Date();viewY=t.getFullYear();viewM=t.getMonth();render();};
-// 달력을 밀어 넘기기 — 오른쪽으로 밀면 이전 달, 왼쪽으로 밀면 다음 달 (주간 보기면 한 주씩, 화살표와 같음)
-// 핸드폰은 손가락, PC 는 마우스로 끌기. 가로로 50px 넘게, 세로보다 확실히 많이 움직였을 때만 (위아래 스크롤과 안 헷갈리게)
-let calSwipedAt=0;   // 끌어서 넘긴 시각 — 바로 뒤따라오는 클릭으로 날짜가 눌리지 않게 (renderCalendar 에서 봄)
-{let sx=0,sy=0,st=0,on=false;
- const card=$('calCard');
- $('grid').addEventListener('animationend',()=>$('grid').classList.remove('slide-l','slide-r'));   // 남겨 두면 화면 크기 바뀔 때 다시 움직임
- const begin=(x,y)=>{sx=x;sy=y;st=Date.now();on=true;};
- const finish=(x,y)=>{
-   if(!on)return false;on=false;
-   const dx=x-sx,dy=y-sy;
-   if(Math.abs(dx)<50||Math.abs(dx)<Math.abs(dy)*1.5||Date.now()-st>1000)return false;
-   const next=dx<0;
-   (next?$('nextBtn'):$('prevBtn')).click();
-   const g=$('grid');g.classList.remove('slide-l','slide-r');void g.offsetWidth;g.classList.add(next?'slide-l':'slide-r');
-   setTimeout(()=>g.classList.remove('slide-l','slide-r'),400);   // animationend 가 안 오는 경우(앱이 뒤로 갔을 때 등) 대비
-   calSwipedAt=Date.now();
-   return true;
- };
- // 손가락
- card.addEventListener('touchstart',e=>{if(e.touches.length!==1){on=false;return;}begin(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
- card.addEventListener('touchcancel',()=>{on=false;},{passive:true});
- card.addEventListener('touchend',e=>{const t=e.changedTouches[0];finish(t.clientX,t.clientY);},{passive:true});
- // 마우스 (왼쪽 버튼). 달력 밖에서 놓아도 됨
- card.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&e.button===0)begin(e.clientX,e.clientY);});
- card.addEventListener('dragstart',e=>e.preventDefault());   // 글자·그림 끌기 막기
- window.addEventListener('pointerup',e=>{if(e.pointerType==='mouse')finish(e.clientX,e.clientY);});
+// 좌우로 밀기 — 핸드폰은 손가락, PC 는 마우스로 끌기. 가로로 50px 넘게, 세로보다 확실히 많이 움직였을 때만 (위아래 스크롤과 안 헷갈리게)
+// skip(누른 곳) 이 참이면 무시. 밀었으면 fn(next) — next: 오른쪽→왼쪽으로 밀었음
+function onSwipe(el,skip,fn){
+  let sx=0,sy=0,st=0,on=false;
+  const begin=(x,y,tg)=>{sx=x;sy=y;st=Date.now();on=!skip(tg);};
+  const finish=(x,y)=>{
+    if(!on)return;on=false;
+    const dx=x-sx,dy=y-sy;
+    if(Math.abs(dx)<50||Math.abs(dx)<Math.abs(dy)*1.5||Date.now()-st>1000)return;
+    fn(dx<0);
+  };
+  // 손가락
+  el.addEventListener('touchstart',e=>{if(e.touches.length!==1){on=false;return;}begin(e.touches[0].clientX,e.touches[0].clientY,e.target);},{passive:true});
+  el.addEventListener('touchcancel',()=>{on=false;},{passive:true});
+  el.addEventListener('touchend',e=>{const t=e.changedTouches[0];finish(t.clientX,t.clientY);},{passive:true});
+  // 마우스 (왼쪽 버튼). 밖에서 놓아도 됨
+  el.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&e.button===0)begin(e.clientX,e.clientY,e.target);});
+  el.addEventListener('dragstart',e=>e.preventDefault());   // 글자·그림 끌기 막기
+  window.addEventListener('pointerup',e=>{if(e.pointerType==='mouse')finish(e.clientX,e.clientY);});
 }
+// 밀린 방향에서 들어오는 움직임. 끝나면 class 를 뗌 (남겨 두면 화면 크기 바뀔 때 다시 움직임)
+function slideIn(el,next){
+  el.classList.remove('slide-l','slide-r');void el.offsetWidth;el.classList.add(next?'slide-l':'slide-r');
+  el.addEventListener('animationend',()=>el.classList.remove('slide-l','slide-r'),{once:true});
+  setTimeout(()=>el.classList.remove('slide-l','slide-r'),400);   // animationend 가 안 오는 경우(앱이 뒤로 갔을 때 등) 대비
+}
+// 달력을 밀어 넘기기 — 오른쪽으로 밀면 이전 달, 왼쪽으로 밀면 다음 달 (주간 보기면 한 주씩, 화살표와 같음)
+let calSwipedAt=0;   // 끌어서 넘긴 시각 — 바로 뒤따라오는 클릭으로 날짜가 눌리지 않게 (renderCalendar 에서 봄)
+onSwipe($('calCard'),()=>false,next=>{
+  (next?$('nextBtn'):$('prevBtn')).click();
+  slideIn($('grid'),next);
+  calSwipedAt=Date.now();
+});
+// 할 일 목록을 밀어 회사 ↔ 개인 전환 — 왼쪽→오른쪽은 회사, 오른쪽→왼쪽은 개인 (위 탭 순서와 같은 방향)
+// 순서 바꾸기 손잡이에서 시작한 것·선택 모드는 무시
+let listSwipedAt=0;   // 바로 뒤따라오는 클릭으로 일정이 눌리지 않게 (makeRow 에서 봄)
+onSwipe($('listCard'),tg=>selMode||!!drag||!!tg.closest('.grip'),next=>{
+  listSwipedAt=Date.now();
+  const s=next?'home':'work';
+  if(s===space)return;
+  setSpace(s);
+  slideIn($('listCard'),next);slideIn($('grid'),next);
+});
 
 let toastT, toastUndoFn=null;
 function toast(msg,undoFn){
