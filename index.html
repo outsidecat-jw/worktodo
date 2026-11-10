@@ -641,7 +641,7 @@ const live=()=>Object.values(tasks).filter(t=>!t.deleted&&!t.archived&&inSpace(t
 // 정렬: 완료 아래 → 색(빨강>파랑>초록) → 시간 있는 게 위(시간순) → 수동 순서 → 만든 순
 const tkey=t=>t.time?t.time:'~';   // '~' 는 모든 시각 문자열보다 뒤
 const sortRows=(list,date)=>list.sort((a,b)=>(isDone(a,date)-isDone(b,date))||(PRI.indexOf(priOf(a))-PRI.indexOf(priOf(b)))||(tkey(a)<tkey(b)?-1:tkey(a)>tkey(b)?1:0)||(ord(a)-ord(b))||((a.createdAt||0)-(b.createdAt||0)));
-const ALARM_OPTS=[[0,'정각'],[5,'5분 전'],[10,'10분 전'],[15,'15분 전'],[30,'30분 전'],[60,'1시간 전'],[120,'2시간 전'],[180,'3시간 전'],[360,'6시간 전'],[720,'12시간 전'],[1440,'1일 전'],[2880,'2일 전']];
+const ALARM_OPTS=[[0,'정각'],[1,'1분 전'],[2,'2분 전'],[3,'3분 전'],[5,'5분 전'],[10,'10분 전'],[15,'15분 전'],[30,'30분 전'],[60,'1시간 전'],[120,'2시간 전'],[180,'3시간 전'],[360,'6시간 전'],[720,'12시간 전'],[1440,'1일 전'],[2880,'2일 전']];
 const alarmsOf=t=>Array.isArray(t.alarms)?t.alarms:[];
 const archived=()=>sortRows(Object.values(tasks).filter(t=>!t.deleted&&t.archived&&inSpace(t)),null);
 // 새로 추가하는 일정을 그 색의 맨 위에 두기 위한 순서값 (기존 것보다 작게)
