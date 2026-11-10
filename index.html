@@ -176,7 +176,6 @@ body.selmode .app{padding-bottom:180px}
 .task .tm svg{width:11px;height:11px;stroke:#7a5a00;stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .task.done .tm{color:var(--done);background:#f2f2f4}
 .task.done .tm svg{stroke:var(--done)}
-.task.timed .grip{visibility:hidden}
 
 .pushrow{display:flex;align-items:center;gap:8px;background:#f7f7f8;border-radius:12px;padding:10px 12px;font-size:13px;color:var(--sub);margin-bottom:4px}
 .pushrow .pdot{width:8px;height:8px;border-radius:50%;background:#c7c7cc;flex:none}
@@ -638,9 +637,10 @@ const priOf=t=>PRI.includes(t.priority)?t.priority:'blue';
 // 수동 순서. 정한 적 없으면 맨 아래(새 일정은 아래에 붙음)
 const ord=t=>typeof t.order==='number'?t.order:Number.MAX_SAFE_INTEGER;
 const live=()=>Object.values(tasks).filter(t=>!t.deleted&&!t.archived&&inSpace(t));   // 휴지통·보관함 제외, 지금 공간만 (달력용)
-// 정렬: 완료 아래 → 색(빨강>파랑>초록) → 시간 있는 게 위(시간순) → 수동 순서 → 만든 순
+// 정렬: 완료 아래 → 색(빨강>파랑>초록) → 수동 순서(끌어서 바꾼 순서) → 시간순 → 만든 순
+// (시간 있는 일정도 끌어서 순서를 바꿀 수 있게, 시각보다 수동 순서를 먼저 봄 — 형님 2026-11-10)
 const tkey=t=>t.time?t.time:'~';   // '~' 는 모든 시각 문자열보다 뒤
-const sortRows=(list,date)=>list.sort((a,b)=>(isDone(a,date)-isDone(b,date))||(PRI.indexOf(priOf(a))-PRI.indexOf(priOf(b)))||(tkey(a)<tkey(b)?-1:tkey(a)>tkey(b)?1:0)||(ord(a)-ord(b))||((a.createdAt||0)-(b.createdAt||0)));
+const sortRows=(list,date)=>list.sort((a,b)=>(isDone(a,date)-isDone(b,date))||(PRI.indexOf(priOf(a))-PRI.indexOf(priOf(b)))||(ord(a)-ord(b))||(tkey(a)<tkey(b)?-1:tkey(a)>tkey(b)?1:0)||((a.createdAt||0)-(b.createdAt||0)));
 const ALARM_OPTS=[[0,'정각'],[1,'1분 전'],[2,'2분 전'],[3,'3분 전'],[5,'5분 전'],[10,'10분 전'],[15,'15분 전'],[30,'30분 전'],[60,'1시간 전'],[120,'2시간 전'],[180,'3시간 전'],[360,'6시간 전'],[720,'12시간 전'],[1440,'1일 전'],[2880,'2일 전']];
 const alarmsOf=t=>Array.isArray(t.alarms)?t.alarms:[];
 const archived=()=>sortRows(Object.values(tasks).filter(t=>!t.deleted&&t.archived&&inSpace(t)),null);
@@ -902,8 +902,7 @@ function makeRow(t,date){
   row.className='task'+(done?' done':'');
   row.dataset.p=priOf(t);
   row.dataset.id=t.id;
-  row.dataset.group=(done?'d':'u')+'-'+priOf(t)+(t.time?'-t':'');   // 드래그 범위: 같은 완료상태 + 같은 색 (시간 있는 건 시간순 고정)
-  if(t.time)row.classList.add('timed');
+  row.dataset.group=(done?'d':'u')+'-'+priOf(t);   // 드래그 범위: 같은 완료상태 + 같은 색 (시간 있는 것·없는 것 섞어서 놓을 수 있음)
   const tmChip=t.time?`<span class="tm">${t.time}${alarmsOf(t).length?'<svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0112 0v5l2 2H4z"/><path d="M10 20a2 2 0 004 0"/></svg>':''}</span>`:'';
   row.innerHTML=`<button class="chk" aria-label="완료"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L19 7"/></svg></button>
     <button class="title"><span class="tt"></span><span class="nt hidden"></span><span class="since hidden"></span></button>${tmChip}${isRepeat(t)?`<span class="rep">${repeatLabel(t)}</span>`:''}
